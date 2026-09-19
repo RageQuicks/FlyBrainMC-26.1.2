@@ -406,25 +406,25 @@ public final class WorldSenses {
         if (e instanceof net.minecraft.world.entity.monster.Creeper) {
             return 0x44B033; // creeper green
         }
-        if (e instanceof net.minecraft.world.entity.monster.Zombie) {
+        if (e instanceof net.minecraft.world.entity.monster.zombie.Zombie) {
             return 0x2E6B4A; // zombie teal/green
         }
-        if (e instanceof net.minecraft.world.entity.monster.Skeleton) {
+        if (e instanceof net.minecraft.world.entity.monster.skeleton.Skeleton) {
             return 0xC8C8C8; // skeleton bone white
         }
-        if (e instanceof net.minecraft.world.entity.monster.Spider) {
+        if (e instanceof net.minecraft.world.entity.monster.spider.Spider) {
             return 0x302620; // spider dark brown
         }
-        if (e instanceof net.minecraft.world.entity.animal.Cow) {
+        if (e instanceof net.minecraft.world.entity.animal.cow.Cow) {
             return 0x4A3628; // cow brown/black
         }
-        if (e instanceof net.minecraft.world.entity.animal.Pig) {
+        if (e instanceof net.minecraft.world.entity.animal.pig.Pig) {
             return 0xF09E96; // pig pink
         }
-        if (e instanceof net.minecraft.world.entity.animal.Sheep) {
+        if (e instanceof net.minecraft.world.entity.animal.sheep.Sheep) {
             return 0xE8E8E8; // sheep white wool
         }
-        if (e instanceof net.minecraft.world.entity.animal.Chicken) {
+        if (e instanceof net.minecraft.world.entity.animal.chicken.Chicken) {
             return 0xF4F4EC; // chicken feather white
         }
         int team = e.getTeamColor();
