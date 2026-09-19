@@ -1,0 +1,134 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	mavenCentral()
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"fruitfly" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+	testImplementation platform('org.junit:junit-bom:5.11.4')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+	useJUnitPlatform()
+	maxHeapSize = '4g'
+	testLogging {
+		events "passed", "skipped", "failed"
+		exceptionFormat "full"
+		showStandardStreams = true
+	}
+}
+
+// Headless brain harness (no Minecraft launch). Usage:
+//   gradlew brainBench "-Pflyb=src/main/resources/connectome/malecns-v1.0.flyb.gz" ["-Pms=2000"] ["-Pstim=ORN_DM1:150"]
+tasks.register('brainBench', JavaExec) {
+	group = 'fruitfly'
+	description = 'Run the connectome LIF brain headlessly and print population activity'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.fruitfly.brain.tools.BrainBench'
+	def harnessArgs = []
+	['flyb', 'ms', 'stim', 'dt', 'gain', 'threads', 'report', 'seed', 'cfg', 'postGain'].each { key ->
+		if (project.hasProperty(key)) {
+			harnessArgs += ["--${key}".toString(), project.property(key).toString()]
+		}
+	}
+	args = harnessArgs
+	jvmArgs = ['-Xmx6g']
+}
+
+// Headless vision harness: drives the retina (RetinaGeometry + SensoryEncoders) with synthetic scenes.
+//   gradlew visionBench "-Pscene=loom" ["-Pms=800"] ["-Pcfg=gain=0.65"]
+tasks.register('visionBench', JavaExec) {
+	group = 'fruitfly'
+	description = 'Run synthetic visual scenes (flash, loom, bar) through the retina encoder and report visual/DN activity'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.fruitfly.brain.tools.VisionBench'
+	def harnessArgs = []
+	// note: 'objects' would collide with Gradle's project.objects, hence 'objectChannels'
+	['flyb', 'ms', 'scene', 'cfg', 'gain', 'tonic', 'report', 'postGain', 'objectChannels'].each { key ->
+		if (project.hasProperty(key)) {
+			harnessArgs += ["--${key}".toString(), project.property(key).toString()]
+		}
+	}
+	args = harnessArgs
+	jvmArgs = ['-Xmx6g']
+}
+
+// Headless embodiment harness: scripted SensoryFrame scenarios through encoders -> brain -> motor decoder.
+//   gradlew embodiedBench "-Pscenario=apple" ["-Pms=4000"] ["-Plum=0.2"] ["-PkcGain=0.25"] ["-PornRMax=120"]
+tasks.register('embodiedBench', JavaExec) {
+	group = 'fruitfly'
+	description = 'Run scripted sensory scenarios (apple approach, looming, rain) through the whole brain loop headlessly'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.fruitfly.brain.tools.EmbodiedBench'
+	def harnessArgs = []
+	['flyb', 'ms', 'scenario', 'cfg', 'gain', 'report', 'lum', 'kcGain', 'ornRMax'].each { key ->
+		if (project.hasProperty(key)) {
+			harnessArgs += ["--${key}".toString(), project.property(key).toString()]
+		}
+	}
+	args = harnessArgs
+	jvmArgs = ['-Xmx6g']
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": inputs.properties.version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	inputs.property "archivesName", project.base.archivesName
+	from("LICENSE") {
+		rename { "${it}_${inputs.properties.archivesName}"}
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			artifactId = project.archives_base_name
+			from components.java
+		}
+	}
+	repositories {
+	}
+}
