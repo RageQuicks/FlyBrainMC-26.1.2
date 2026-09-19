@@ -14,7 +14,9 @@ import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRe
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.CreativeModeTabs;
@@ -33,20 +35,20 @@ public final class FruitFlyMod implements ModInitializer {
     public static final FruitFlyConfig CONFIG = FruitFlyConfig.load(CONFIG_PATH);
     public static final FlyBrainService BRAIN = new FlyBrainService(CONFIG);
 
-    public static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath(MOD_ID, path); }
+    public static Identifier id(String path) { return Identifier.fromNamespaceAndPath(MOD_ID, path); }
 
     public static final EntityType<FlyEntity> FRUIT_FLY = Registry.register(
             BuiltInRegistries.ENTITY_TYPE, id("fruit_fly"),
             EntityType.Builder.of(FlyEntity::new, MobCategory.CREATURE)
                     .sized(0.5f, 0.3f)
                     .eyeHeight(0.2f)
-                    .clientTrackingRange(10)
-                    .updateInterval(1)
-                    .build());
+                    .setTrackingRange(10)
+                    .setUpdateInterval(1)
+                    .build(ResourceKey.create(Registries.ENTITY_TYPE, id("fruit_fly"))));
 
     public static final Item FRUIT_FLY_SPAWN_EGG = Registry.register(
             BuiltInRegistries.ITEM, id("fruit_fly_spawn_egg"),
-            new SpawnEggItem(FRUIT_FLY, 0xC8A165, 0xB22222, new Item.Properties()));
+            new SpawnEggItem(new Item.Properties().spawnEgg(FRUIT_FLY)));
 
     @Override
     public void onInitialize() {
