@@ -31,6 +31,9 @@ public final class SensoryFrame {
     public final Map<String, Float> odor = new HashMap<>();
     /** Bearing (deg) of the dominant odor source, NaN if none. Used for bilateral ORN gain. */
     public float odorBearingDeg = Float.NaN;
+    /** Drive and bearing of actual plant/sugar food items, kept separate from generic appetitive odor. */
+    public float foodDrive;
+    public float foodBearingDeg = Float.NaN;
 
     /** GRN type (e.g. "LB3b", "LgLG3", "PhG1a") → contact drive 0..1. Fires only on contact. */
     public final Map<String, Float> taste = new HashMap<>();
@@ -64,6 +67,8 @@ public final class SensoryFrame {
         yawRateDegPerS = pitchRateDegPerS = rollRateDegPerS = 0;
         odor.clear();
         odorBearingDeg = Float.NaN;
+        foodDrive = 0;
+        foodBearingDeg = Float.NaN;
         taste.clear();
         windLeft = windRight = tilt = 0;
         soundLow = soundHigh = song = 0;
