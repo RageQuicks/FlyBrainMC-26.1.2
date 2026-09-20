@@ -60,6 +60,9 @@ public final class SensoryFrame {
     /** Wingbeat active (haltere/campaniform feedback) 0..1. */
     public float wingbeat;
 
+    /** Internal homeostatic state supplied by the embodied physiology layer. */
+    public float hunger, thirst, proteinNeed, sleepPressure, reproductiveDrive, groomingNeed, stress, health;
+
     public void clear() {
         Arrays.fill(luminance, Float.NaN);
         if (red != null && red.length > 0) Arrays.fill(red, Float.NaN);
@@ -83,6 +86,8 @@ public final class SensoryFrame {
         airborne = false;
         legsOnGround = true;
         wingbeat = 0;
+        hunger = thirst = proteinNeed = sleepPressure = reproductiveDrive = groomingNeed = stress = 0;
+        health = 1;
     }
 
     /** Add odor drive for a glomerulus (accumulates across sources). */
