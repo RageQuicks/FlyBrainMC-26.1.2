@@ -7,27 +7,20 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.phys.Vec3;
 
-import java.util.Random;
 
 /**
  * The fly's "spinal cord and biomechanics": turns a decoded {@link MotorDecoder.MotorCommand} into motion.
  *
  * <p>Everything here is hand-built (see docs/research/embodied-precedents.md §11): absolute speed gains, flight
- * physics, hysteresis, and an optional reflex layer (odor taxis, exploration, collision avoidance) that only acts
- * when the brain issues no locomotor command. The HUD shows when the reflex layer is driving.</p>
+ * physics, hysteresis, and biomechanical translation of neural motor output.</p>
  */
 public final class FlyBody {
     public static final class State {
         public boolean flying;
         public double hoverY;
-        public boolean reflexDriving;
         public int escapeTicks;
-        public int collisionTurnTicks;
-        public double collisionTurnSign = 1;
-        public double exploreTimer, boutForward, boutYaw;
         public float proboscis;
         public double smoothedForward, smoothedYaw;
-        final Random random = new Random();
     }
 
     private FlyBody() {}
@@ -38,55 +31,12 @@ public final class FlyBody {
         double fwd = cmd == null ? 0 : cmd.forward;
         double yaw = cmd == null ? 0 : cmd.yaw;
         double bwd = cmd == null ? 0 : cmd.backward;
-        boolean brainPresent = fly.brain() != null;
-        st.reflexDriving = false;
-
-        // ---------------- reflex layer (hand-built fallback) ----------------
-        boolean locomotorSilence = fwd < 0.1 && Math.abs(yaw) < 0.1 && bwd < 0.1;
-        boolean stationaryMode = mode == MotorDecoder.Mode.FEED || mode == MotorDecoder.Mode.GROOM || mode == MotorDecoder.Mode.SONG
-                || mode == MotorDecoder.Mode.HALT || mode == MotorDecoder.Mode.BRAKE || mode == MotorDecoder.Mode.ESCAPE
-                || mode == MotorDecoder.Mode.LANDING;
-        if (cfg.reflexLayer && locomotorSilence && !stationaryMode && !st.flying && frame != null) {
-            float[] val = WorldSenses.odorValence(frame);
-            double good = val[0], bad = val[1];
-            if (st.collisionTurnTicks > 0) {
-                st.collisionTurnTicks--;
-                yaw = 0.8 * st.collisionTurnSign;
-                fwd = st.collisionTurnTicks > 8 ? -0.2 : 0.4;
-                st.reflexDriving = true;
-            } else if (!Float.isNaN(frame.odorBearingDeg) && good > 0.05 && good > bad) {
-                // chemotaxis: turn toward the odor bearing, align and walk forward
-                double b = frame.odorBearingDeg;
-                // Proportional steering with gentle scaling so it points towards odor without continuous spinning
-                yaw = Mth.clamp(b / 45.0, -1, 1) * 0.5;
-                fwd = Math.abs(b) < 60 ? 0.6 * Math.min(1.0, good * 2.5) : 0.2;
-                st.reflexDriving = true;
-            } else if (bad > 0.25 && !Float.isNaN(frame.odorBearingDeg)) {
-                // aversion: turn away and walk
-                double b = frame.odorBearingDeg;
-                yaw = -Math.signum(b == 0 ? 1 : b) * 0.6;
-                fwd = 0.5;
-                st.reflexDriving = true;
-            } else if (!brainPresent || mode == MotorDecoder.Mode.IDLE) {
-                // exploration bouts: real flies alternate straight walking runs, brief reorientation saccades, and pauses
-                st.exploreTimer -= dt;
-                if (st.exploreTimer <= 0) {
-                    boolean walk = st.random.nextDouble() < 0.70;
-                    st.boutForward = walk ? 0.4 + 0.4 * st.random.nextDouble() : 0;
-                    // Saccadic turn: 75% of walking bouts walk straight (yaw = 0), 25% perform a brief course change
-                    st.boutYaw = (walk && st.random.nextDouble() < 0.25) ? (st.random.nextDouble() - 0.5) * 0.7 : 0;
-                    st.exploreTimer = 1.0 + 2.0 * st.random.nextDouble();
-                }
-                fwd = st.boutForward;
-                // Decay boutYaw rapidly so turns act as brief saccades rather than holding a constant spin for seconds
-                st.boutYaw *= 0.85;
-                yaw = st.boutYaw;
-                st.reflexDriving = fwd > 0 || Math.abs(yaw) > 0.01;
-            }
-        }
-        if (fly.horizontalCollision && st.collisionTurnTicks <= 0 && !st.flying) {
-            st.collisionTurnTicks = 16;
-            st.collisionTurnSign = st.random.nextBoolean() ? 1 : -1;
+        if (fly.brain() == null) {
+            // No brain means no autonomous behavior. Do not replay or synthesize a fallback controller.
+            st.smoothedForward *= 0.65;
+            st.smoothedYaw *= 0.65;
+            if (fly.onGround()) fly.setDeltaMovement(fly.getDeltaMovement().multiply(0.65, 1.0, 0.65));
+            return;
         }
 
         // ---------------- mode arbitration on top of channels ----------------
@@ -105,35 +55,6 @@ public final class FlyBody {
             default -> { }
         }
         if (mode != MotorDecoder.Mode.ESCAPE) st.escapeTicks = 0;
-
-        // Food-seeking taxis is deliberately a very small high-level reflex layered on top of the
-        // connectome.  The avoidance reflex already works, but the current connectome does not turn
-        // Minecraft item odor into locomotion reliably.  Give actual plant/sugar food a directional
-        // drive while leaving the neural feed/taste behavior intact.
-        if (cfg.reflexLayer && frame != null && frame.foodDrive > 0.03f
-                && !Float.isNaN(frame.foodBearingDeg) && mode != MotorDecoder.Mode.ESCAPE) {
-            double b = frame.foodBearingDeg;
-            double strength = Math.min(1.0, frame.foodDrive * 1.8);
-            yaw = Mth.clamp(b / 55.0, -1, 1) * (0.35 + 0.45 * strength);
-            fwd = Math.max(fwd, 0.35 + 0.45 * strength);
-            st.reflexDriving = true;
-        }
-
-        // Brain-derived courtship taxis: pC1 is a persistent courtship state in the connectome.
-        // When the male's brain enters that state and female pheromone is detected, steer toward
-        // the female. Song remains a separate pIP10-driven stationary behavior, so the sequence
-        // naturally becomes approach → courtship song.
-        if (cfg.reflexLayer && frame != null && cmd != null && fly.isMale()
-                && cmd.courtship > 0.10 && frame.femaleDrive > 0.03f
-                && !Float.isNaN(frame.femaleBearingDeg)
-                && mode != MotorDecoder.Mode.ESCAPE && mode != MotorDecoder.Mode.FLYING
-                && mode != MotorDecoder.Mode.LANDING && mode != MotorDecoder.Mode.SONG) {
-            double b = frame.femaleBearingDeg;
-            double strength = Math.min(1.0, cmd.courtship * 1.5);
-            yaw = Mth.clamp(b / 50.0, -1, 1) * (0.25 + 0.40 * strength);
-            fwd = Math.max(fwd, 0.20 + 0.35 * strength);
-            st.reflexDriving = true;
-        }
 
         // smooth commands (DN → behaviour lag ~150 ms already consumed by the decoder; this removes tick jitter)
         st.smoothedForward += 0.35 * (fwd - st.smoothedForward);
