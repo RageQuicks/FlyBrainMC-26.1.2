@@ -65,7 +65,7 @@ public final class FlyBody {
         boolean wantFly = cfg.flightEnabled && (mode == MotorDecoder.Mode.FLYING || jumpNow);
         if (wantFly && !st.flying) {
             st.flying = true;
-            st.hoverY = fly.getY() + 1.2 + st.random.nextDouble();
+            st.hoverY = fly.getY() + 1.5;
         }
         if (mode == MotorDecoder.Mode.LANDING || (st.flying && !cfg.flightEnabled)) {
             if (fly.onGround() || fly.isInWater()) {
