@@ -11,6 +11,7 @@ import com.fruitfly.brain.RetinaGeometry;
 import com.fruitfly.brain.SensoryEncoders;
 import com.fruitfly.brain.SensoryFrame;
 import com.fruitfly.net.BrainTelemetryPayload;
+import com.mojang.serialization.Codec;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.chat.Component;
@@ -258,7 +259,7 @@ public class FlyEntity extends Mob {
     public void tick() {
         // before the AI step so the first telemetry payload already carries the number; runs for NoAI flies too,
         // which never reach customServerAiStep
-        if (!level().isClientSide) ensureIdentity();
+        if (!level().isClientSide()) ensureIdentity();
         super.tick();
     }
 
@@ -417,7 +418,6 @@ public class FlyEntity extends Mob {
     public boolean isFlapping() { return bodyState.flying || isFlyingState(); }
 
     @Override
-    @Override
     public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
         boolean r = super.hurtServer(level, source, amount);
         if (r) damageAccum = Math.min(1f, damageAccum + amount / 2f);
@@ -450,7 +450,7 @@ public class FlyEntity extends Mob {
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         TasteTable.Taste t = TasteTable.forItem(stack);
-        if (t != null && !level().isClientSide) {
+        if (t != null && !level().isClientSide()) {
             // offer food by hand: labellar contact for 2 s
             for (Map.Entry<String, Float> e : t.labellar().entrySet()) stimulate(e.getKey(), 120 * e.getValue(), 40);
             for (Map.Entry<String, Float> e : t.tarsal().entrySet()) stimulate(e.getKey(), 100 * e.getValue(), 40);
@@ -472,15 +472,15 @@ public class FlyEntity extends Mob {
     @Override
     protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
-        input.getBoolean("Male").ifPresent(this::setMale);
-        input.getFloat("FlyScale").ifPresent(this::setFlyScale);
-        input.getFloat("Hunger").ifPresent(v -> hunger = v);
-        input.getInt("FlyNo").ifPresent(v -> entityData.set(DATA_FLY_NO, v));
+        input.read("Male", Codec.BOOL).ifPresent(this::setMale);
+        input.read("FlyScale", Codec.FLOAT).ifPresent(this::setFlyScale);
+        input.read("Hunger", Codec.FLOAT).ifPresent(v -> hunger = v);
+        input.read("FlyNo", Codec.INT).ifPresent(v -> entityData.set(DATA_FLY_NO, v));
     }
 
     @Override
     public void remove(RemovalReason reason) {
         super.remove(reason);
-        if (!level().isClientSide) releaseBrain();
+        if (!level().isClientSide()) releaseBrain();
     }
 }
