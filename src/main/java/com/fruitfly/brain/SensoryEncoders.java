@@ -235,7 +235,7 @@ public final class SensoryEncoders {
         // They stand in for the endocrine state reaching NPF/sNPF/insulin systems.
         setRates(net, npf, 35.0 * f.hunger);
         setRates(net, snpf, 28.0 * f.hunger);
-        setRates(net, dilp, 20.0 * f.satiety());
+        setRates(net, dilp, 20.0 * (1.0 - f.hunger));
     }
 
     private static int[] optional(PopulationIndex pi, String spec) {
