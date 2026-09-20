@@ -4,7 +4,7 @@ import com.fruitfly.entity.FlyEntity;
 import com.fruitfly.net.BrainTelemetryPayload;
 import com.fruitfly.server.BrainCommands;
 import com.fruitfly.server.FruitFlyCommands;
-import com.fruitfly.server.FlyVillageSpawner;
+import com.fruitfly.server.DebugFlySpawner;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -64,7 +64,7 @@ public final class FruitFlyMod implements ModInitializer {
             BrainCommands.register(dispatcher);
         });
 
-        FlyVillageSpawner.register();
+        DebugFlySpawner.register();
         ServerLifecycleEvents.SERVER_STARTING.register(server -> BRAIN.preload());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> BRAIN.shutdown());
         ServerEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
