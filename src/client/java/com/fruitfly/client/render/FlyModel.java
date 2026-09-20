@@ -1,7 +1,7 @@
 package com.fruitfly.client.render;
 
-import com.fruitfly.entity.FlyEntity;
-import net.minecraft.client.model.HierarchicalModel;
+import net.minecraft.client.model.EntityModel;
+import com.fruitfly.client.render.FlyRenderState;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
@@ -48,7 +48,7 @@ import java.util.WeakHashMap;
  * <p>The wings are kept {@code visible = false} so the opaque cutout pass skips them; {@link FlyWingLayer} renders them
  * with {@code RenderType.entityTranslucent}.
  */
-public class FlyModel extends HierarchicalModel<FlyEntity> {
+public class FlyModel extends EntityModel<FlyRenderState> {
     /** Leg order: L1, R1, L2, R2, L3, R3 (1-based "1,4,5" vs "2,3,6" = tripod {L1,R2,L3} vs {R1,L2,R3}). */
     public static final String[] LEG_NAMES = {"left_front_leg", "right_front_leg", "left_middle_leg", "right_middle_leg", "left_hind_leg", "right_hind_leg"};
 
@@ -66,7 +66,7 @@ public class FlyModel extends HierarchicalModel<FlyEntity> {
     public final Leg[] legs = new Leg[6];
 
     /** Per-entity smoothed behaviour blends (the model instance is shared by every fly of the type). */
-    private final Map<FlyEntity, AnimState> states = new WeakHashMap<>();
+    private final Map<Integer, AnimState> states = new java.util.HashMap<>();
     /** 0..1 amount of "wing blur" the wing layer should draw (flight blend of the fly rendered last). */
     private float wingBlur;
     private float wingBlurTime;
@@ -217,21 +217,22 @@ public class FlyModel extends HierarchicalModel<FlyEntity> {
     // ------------------------------------------------------------------------------------------------------ animation
 
     @Override
-    public void setupAnim(FlyEntity fly, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
+    public void setupAnim(FlyRenderState fly) {
+        super.setupAnim(fly);
         root.getAllParts().forEach(ModelPart::resetPose);
         AnimState st = advance(fly, ageInTicks);
         float fl = st.flight;                 // 0 walking .. 1 flying
         float gr = st.groom;                  // 0 .. 1 grooming
         float so = st.song;                   // 0 .. 1 singing (unilateral wing extension)
-        float fe = Mth.clamp(fly.getProboscis(), 0F, 1F);   // proboscis extension (already smooth, from the body)
-        boolean flapping = fly.isFlapping();
+        float fe = Mth.clamp(fly.proboscis, 0F, 1F);   // proboscis extension (already smooth, from the body)
+        boolean flapping = fly.flapping;
         float t = ageInTicks * 2.1F;          // wing beat cadence (2.1 rad/tick, vanilla bee)
         wingBlur = flapping ? Math.max(fl, 0.5F) : fl;
         wingBlurTime = t;
 
         // ---- head: flies barely turn their heads
-        head.yRot = netHeadYaw * Mth.DEG_TO_RAD * 0.4F;
-        head.xRot = headPitch * Mth.DEG_TO_RAD * 0.4F;
+        head.yRot = fly.headYaw * Mth.DEG_TO_RAD * 0.4F;
+        head.xRot = fly.headPitch * Mth.DEG_TO_RAD * 0.4F;
 
         // ---- idle life: antenna twitch, abdominal breathing
         float idle = Mth.cos(ageInTicks * 0.18F);
@@ -242,9 +243,9 @@ public class FlyModel extends HierarchicalModel<FlyEntity> {
 
         // ---- legs: tripod gait (blended out while flying/grooming)
         float walk = (1F - fl) * (1F - gr);
-        float f = limbSwing * 3.0F;
-        float amp = 0.5F * limbSwingAmount;
-        float lift = 0.35F * limbSwingAmount;
+        float f = fly.walkAnimationPos * 3.0F;
+        float amp = 0.5F * fly.walkAnimationSpeed;
+        float lift = 0.35F * fly.walkAnimationSpeed;
         for (Leg leg : legs) {
             float ph = f + leg.phase;
             float swing = Mth.cos(ph) * amp;
@@ -265,7 +266,7 @@ public class FlyModel extends HierarchicalModel<FlyEntity> {
             leg.tibia.zRot = tibiaRoll;
             leg.tarsus.zRot = tarsusRoll;
         }
-        body.y += Math.abs(Mth.cos(f)) * 0.15F * limbSwingAmount * walk;   // tiny walking bounce
+        body.y += Math.abs(Mth.cos(f)) * 0.15F * fly.walkAnimationSpeed * walk;   // tiny walking bounce
 
         // ---- flight: wings out and beating, halteres in antiphase, nose-up hover, bank into turns
         if (fl > 0.001F) {
@@ -279,8 +280,8 @@ public class FlyModel extends HierarchicalModel<FlyEntity> {
             rightWing.xRot = fl * -twist;
             leftHaltere.zRot = fl * -Mth.cos(t) * 0.8F;
             rightHaltere.zRot = fl * Mth.cos(t) * 0.8F;
-            float climb = Mth.clamp((float) fly.getDeltaMovement().y * 3F, -0.5F, 0.5F);
-            float yawRate = Mth.wrapDegrees(fly.yBodyRot - fly.yBodyRotO);
+            float climb = Mth.clamp(fly.verticalVelocity * 3F, -0.5F, 0.5F);
+            float yawRate = Mth.wrapDegrees(fly.bodyYaw - fly.oldBodyYaw);
             body.xRot += fl * (-0.25F - climb);
             body.zRot += fl * -Mth.clamp(yawRate * 0.03F, -0.5F, 0.5F);
             body.y += fl * (-1.0F + Mth.sin(ageInTicks * 0.35F) * 0.4F);
@@ -360,13 +361,13 @@ public class FlyModel extends HierarchicalModel<FlyEntity> {
     }
 
     /** Smooth the synched behaviour booleans into 0..1 blends so wings/legs do not pop between poses. */
-    private AnimState advance(FlyEntity fly, float ageInTicks) {
-        AnimState st = states.computeIfAbsent(fly, k -> new AnimState());
+    private AnimState advance(FlyRenderState fly, float ageInTicks) {
+        AnimState st = states.computeIfAbsent(fly.entityId, k -> new AnimState());
         float dt = Float.isNaN(st.lastAge) ? 1F : Mth.clamp(ageInTicks - st.lastAge, 0F, 1F);
         st.lastAge = ageInTicks;
-        boolean flying = fly.isFlyingState() || fly.isFlapping();
-        byte groom = fly.getGroomState();
-        byte wing = fly.getWingExtension();
+        boolean flying = fly.flyingState || fly.flapping;
+        byte groom = fly.groomState;
+        byte wing = fly.wingExtension;
         if (groom != 0) st.groomKind = groom;
         if (wing != 0) st.songSide = wing;
         st.flight = Mth.approach(st.flight, flying ? 1F : 0F, dt * 0.35F);
