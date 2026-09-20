@@ -137,7 +137,7 @@ final class HudStyle {
 
     static int withAlpha(int argb, int alpha) { return (argb & 0x00FFFFFF) | ((alpha & 0xFF) << 24); }
 
-    static int lerp(float t, int a, int b) { return ARGB.lerp(Math.max(0f, Math.min(1f, t)), a, b); }
+    static int lerp(float t, int a, int b) { return ((int)(Math.max(0f, Math.min(1f, t))*((a>>>24)&255)+(1-Math.max(0f, Math.min(1f, t)))*((b>>>24)&255))<<24)|((int)(Math.max(0f, Math.min(1f, t))*((a>>>16)&255)+(1-Math.max(0f, Math.min(1f, t)))*((b>>>16)&255))<<16)|((int)(Math.max(0f, Math.min(1f, t))*((a>>>8)&255)+(1-Math.max(0f, Math.min(1f, t)))*((b>>>8)&255))<<8)|(int)(Math.max(0f, Math.min(1f, t))*(a&255)+(1-Math.max(0f, Math.min(1f, t)))*(b&255)); }
 
     static int grey(int lum) {
         int l = Math.max(0, Math.min(255, lum));
