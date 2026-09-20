@@ -21,7 +21,7 @@ public final class FruitFlyConfig {
     /** Worker threads per brain (0 = auto). */
     public int brainThreads = 0;
     /** Maximum simultaneously simulated flies. Flies without a brain are inert until a brain becomes available. */
-    public int maxBrains = 4;
+    public int maxBrains = 16;
     /** Postsynaptic input gain for Kenyon cells (sparse coding correction; 1 = literal). */
     public double kenyonCellInputGain = 0.25;
     /** Postsynaptic input gain for antennal-lobe projection neurons (1 = literal). */
@@ -39,7 +39,7 @@ public final class FruitFlyConfig {
     public double odorRadius = 16;
     public double odorFalloffBlocks = 6;
     public double maxOrnRateHz = 120;
-    public double spontOrnRateHz = 5;
+    public double spontOrnRateHz = 8;
     public double spontJoWindRateHz = 8;
     public double spontJoAuditoryRateHz = 2;
     public double laminaTonicMvPerMs = 0.5;
@@ -55,6 +55,14 @@ public final class FruitFlyConfig {
     public boolean reflexLayer = false;
     public boolean flightEnabled = true;
     public boolean spawnEggInCreativeTab = true;
+
+    // --- ecology / physiology ---
+    /** Adult flies maintained around each loaded village cluster. */
+    public int villageFlyTarget = 10;
+    /** Villagers within this radius are considered one village cluster for fly population purposes. */
+    public double villageClusterRadius = 48;
+    /** Population maintenance interval in ticks. */
+    public int villageSpawnCheckTicks = 200;
 
     // --- telemetry / debug ---
     /**
