@@ -63,6 +63,7 @@ public final class OdorTable {
         ITEMS.put(Items.WHEAT, green);
         ITEMS.put(Items.HAY_BLOCK, green);
         ITEMS.put(Items.CARROT, odor(0.6f, "DM1", 0.4, "DL5", 0.4, "VA3", 0.3));
+        ITEMS.put(Items.GOLDEN_CARROT, odor(0.8f, "DM1", 0.6, "VA2", 0.5, "DL5", 0.3));
         ITEMS.put(Items.POTATO, odor(0.4f, "DL5", 0.4, "VC1", 0.3));
         ITEMS.put(Items.BEETROOT, odor(0.6f, "DA2", 0.5, "DL5", 0.4));
         ITEMS.put(Items.CHORUS_FRUIT, odor(0.8f, "DM1", 0.6, "VL2a", 0.5));
