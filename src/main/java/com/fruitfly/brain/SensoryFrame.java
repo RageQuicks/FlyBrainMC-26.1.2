@@ -34,6 +34,9 @@ public final class SensoryFrame {
     /** Drive and bearing of actual plant/sugar food items, kept separate from generic appetitive odor. */
     public float foodDrive;
     public float foodBearingDeg = Float.NaN;
+    /** Drive and bearing of nearby female flies, used by the brain-derived courtship state. */
+    public float femaleDrive;
+    public float femaleBearingDeg = Float.NaN;
 
     /** GRN type (e.g. "LB3b", "LgLG3", "PhG1a") → contact drive 0..1. Fires only on contact. */
     public final Map<String, Float> taste = new HashMap<>();
@@ -69,6 +72,8 @@ public final class SensoryFrame {
         odorBearingDeg = Float.NaN;
         foodDrive = 0;
         foodBearingDeg = Float.NaN;
+        femaleDrive = 0;
+        femaleBearingDeg = Float.NaN;
         taste.clear();
         windLeft = windRight = tilt = 0;
         soundLow = soundHigh = song = 0;
