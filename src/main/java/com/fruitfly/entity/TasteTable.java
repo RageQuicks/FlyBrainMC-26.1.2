@@ -87,4 +87,16 @@ public final class TasteTable {
         if (state == null || state.isAir()) return null;
         return BLOCKS.get(state.getBlock());
     }
+
+    /**
+     * Food that a fruit fly should actively forage for in the world.
+     *
+     * <p>Protein/meat is deliberately excluded: the experiment here is to let the existing
+     * appetitive/food circuitry respond to plant- and sugar-associated foods rather than adding
+     * a Minecraft-style target selector.</p>
+     */
+    public static boolean isFlyFood(ItemStack stack) {
+        Taste t = forItem(stack);
+        return t != null && t != PROTEIN && t != BITTER && t != ROTTEN && t.nutrition() > 0;
+    }
 }
