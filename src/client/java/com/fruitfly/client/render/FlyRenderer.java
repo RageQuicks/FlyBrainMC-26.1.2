@@ -14,8 +14,8 @@ import net.minecraft.resources.Identifier;
  * {@code entityCutoutNoCull}; wings translucent via {@link FlyWingLayer}; activity glow via {@link FlyGlowLayer}.
  */
 public class FlyRenderer extends MobRenderer<FlyEntity, FlyModel> {
-    private static final ResourceLocation TEXTURE_MALE = FruitFlyMod.id("textures/entity/fruit_fly.png");
-    private static final ResourceLocation TEXTURE_FEMALE = FruitFlyMod.id("textures/entity/fruit_fly_female.png");
+    private static final Identifier TEXTURE_MALE = FruitFlyMod.id("textures/entity/fruit_fly.png");
+    private static final Identifier TEXTURE_FEMALE = FruitFlyMod.id("textures/entity/fruit_fly_female.png");
     private static final float BASE_SCALE = 0.6F;
     private static final float SHADOW_RADIUS = 0.15F;
 
