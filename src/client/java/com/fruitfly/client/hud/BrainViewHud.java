@@ -204,7 +204,7 @@ public final class BrainViewHud {
         Arrays.fill(pr, (byte) -1);
         double logMax = Math.log1p(maxCount);
         for (int p = 0; p < w * h; p++) {
-            if (count[p] == 0) { bg.setPixelRGBA(p % w, p / w, 0); ht.setPixelRGBA(p % w, p / w, 0); continue; }
+            if (count[p] == 0) { bg.setPixelColor(p % w, p / w, 0); ht.setPixelRGBA(p % w, p / w, 0); continue; }
             int best = 0;
             for (int r = 1; r < REGIONS; r++) if (regionHist[p * REGIONS + r] > regionHist[p * REGIONS + best]) best = r;
             pr[p] = (byte) best;
@@ -292,7 +292,7 @@ public final class BrainViewHud {
         for (int p = 0; p < w * h; p++) {
             float v = heat[p];
             if (v < 0.02f) {
-                if (heatImg.getPixelRGBA(p % w, p / w) != 0) heatImg.setPixelRGBA(p % w, p / w, 0);
+                if (heatImg.getPixelColor(p % w, p / w) != 0) heatImg.setPixelRGBA(p % w, p / w, 0);
                 continue;
             }
             int region = pixelRegion[p] < 0 ? 7 : pixelRegion[p];
@@ -342,7 +342,7 @@ public final class BrainViewHud {
         if (!FruitFlyMod.BRAIN.ready()) {
             FruitFlyMod.BRAIN.preload();
             g.fill(4, 4, 4 + 190, 4 + 2 * line + 2 * pad, HudStyle.BG);
-            g.renderOutline(4, 4, 190, 2 * line + 2 * pad, HudStyle.BORDER);
+            g.outline(4, 4, 190, 2 * line + 2 * pad, HudStyle.BORDER);
             g.text(font, "BRAIN VIEW", 4 + pad, 4 + pad, HudStyle.ACCENT, false);
             g.text(font, FruitFlyMod.BRAIN.loadError() != null ? "connectome failed to load" : "loading connectome...", 4 + pad, 4 + pad + line, HudStyle.DIM, false);
             return;
