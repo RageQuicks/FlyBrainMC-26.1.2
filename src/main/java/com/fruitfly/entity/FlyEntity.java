@@ -69,6 +69,7 @@ public class FlyEntity extends Mob {
     private MotorDecoder decoder;
     private final WorldSenses.State senseState = new WorldSenses.State();
     private final FlyBody.State bodyState = new FlyBody.State();
+    private final FlyPhysiology physiology = new FlyPhysiology();
     private SensoryFrame lastFrame;
     private float damageAccum;
     private float hunger = 0.6f;          // 0 = starving, 1 = sated
@@ -188,8 +189,19 @@ public class FlyEntity extends Mob {
     public SensoryFrame lastFrame() { return lastFrame; }
     public boolean isReflexDriving() { return bodyState.reflexDriving; }
     public BrainTelemetryPayload lastTelemetry() { return lastTelemetry; }
-    public float getHunger() { return hunger; }
-    public void feed(float nutrition) { hunger = Math.max(0f, Math.min(1f, hunger + nutrition)); }
+    public float getHunger() { return (float) physiology.hunger(); }
+    public float getThirst() { return (float) physiology.thirst(); }
+    public float getProteinNeed() { return (float) physiology.proteinNeed(); }
+    public float getSleepPressure() { return (float) physiology.sleepPressure(); }
+    public float getReproductiveDrive() { return (float) physiology.reproductiveDrive(); }
+    public float getGroomingNeed() { return (float) physiology.groomingNeed(); }
+    public float getStress() { return (float) physiology.stress(); }
+    public float getPhysiologicalHealth() { return (float) physiology.health(); }
+    public float getAgeDays() { return (float) physiology.ageDays(); }
+    public void feed(float nutrition) {
+        physiology.feed(nutrition);
+        hunger = (float) physiology.hunger();
+    }
     float consumeDamage() { float d = damageAccum; damageAccum = 0; return d; }
 
     private void acquireBrain() {
@@ -267,7 +279,10 @@ public class FlyEntity extends Mob {
     @Override
     public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty, EntitySpawnReason spawnType, SpawnGroupData groupData) {
         SpawnGroupData result = super.finalizeSpawn(level, difficulty, spawnType, groupData);
-        if (level instanceof ServerLevel) ensureIdentity(); // not from world generation (WorldGenRegion on a worker thread)
+        if (level instanceof ServerLevel) {
+            if (spawnType != EntitySpawnReason.LOAD) setMale(level.getRandom().nextBoolean());
+            ensureIdentity();
+        } // not from world generation (WorldGenRegion on a worker thread)
         return result;
     }
 
@@ -283,9 +298,20 @@ public class FlyEntity extends Mob {
             FruitFlyMod.LOGGER.warn("Fly #{} brain thread died: {}", getId(), brain.failure());
             releaseBrain();
         }
-        // sample the world (also used by the reflex layer when there is no brain)
+        // Sample the world, then feed internal physiology back into the nervous system as homeostatic state.
         SensoryFrame frame = new SensoryFrame();
         WorldSenses.sample(this, frame, FruitFlyMod.BRAIN.geometry(), FruitFlyMod.CONFIG, senseState);
+        MotorDecoder.MotorCommand preCmd = latestCommand();
+        physiology.tick(this, frame, preCmd, 0.05);
+        frame.hunger = (float) physiology.hunger();
+        frame.thirst = (float) physiology.thirst();
+        frame.proteinNeed = (float) physiology.proteinNeed();
+        frame.sleepPressure = (float) physiology.sleepPressure();
+        frame.reproductiveDrive = (float) physiology.reproductiveDrive();
+        frame.groomingNeed = (float) physiology.groomingNeed();
+        frame.stress = (float) physiology.stress();
+        frame.health = (float) physiology.health();
+        hunger = frame.hunger;
         lastFrame = frame;
         if (brain != null) {
             final SensoryEncoders enc = encoders;
@@ -323,7 +349,7 @@ public class FlyEntity extends Mob {
             groom = (byte) (m == a ? 1 : m == h ? 2 : m == l ? 3 : 4);
         }
         entityData.set(DATA_GROOM, groom);
-        hunger = Math.max(0f, hunger - 1f / (20 * 600)); // ~10 minutes to get hungry
+        hunger = frame.hunger;
         if (tickCount % Math.max(1, FruitFlyMod.CONFIG.telemetryEveryTicks) == 0) sendTelemetry(frame, cmd);
     }
 
@@ -466,6 +492,15 @@ public class FlyEntity extends Mob {
         output.putBoolean("Male", isMale());
         output.putFloat("FlyScale", getFlyScale());
         output.putFloat("Hunger", hunger);
+        output.putFloat("PhysEnergy", (float) Math.max(0, Math.min(1, 1.0 - physiology.hunger())));
+        output.putFloat("PhysWater", (float) Math.max(0, Math.min(1, 1.0 - physiology.thirst())));
+        output.putFloat("PhysProtein", (float) Math.max(0, Math.min(1, 1.0 - physiology.proteinNeed())));
+        output.putFloat("PhysSleep", (float) physiology.sleepPressure());
+        output.putFloat("PhysReproduction", (float) physiology.reproductiveDrive());
+        output.putFloat("PhysGrooming", (float) physiology.groomingNeed());
+        output.putFloat("PhysStress", (float) physiology.stress());
+        output.putFloat("PhysHealth", (float) physiology.health());
+        output.putFloat("PhysAgeDays", (float) physiology.ageDays());
         output.putInt("FlyNo", getFlyNumber());
     }
 
