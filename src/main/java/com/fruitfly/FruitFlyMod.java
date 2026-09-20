@@ -48,7 +48,7 @@ public final class FruitFlyMod implements ModInitializer {
 
     public static final Item FRUIT_FLY_SPAWN_EGG = Registry.register(
             BuiltInRegistries.ITEM, id("fruit_fly_spawn_egg"),
-            new SpawnEggItem(new Item.Properties().spawnEgg(FRUIT_FLY)));
+            new SpawnEggItem(new Item.Properties().setId(ResourceKey.create(Registries.ITEM, id("fruit_fly_spawn_egg"))).spawnEgg(FRUIT_FLY)));
 
     @Override
     public void onInitialize() {
