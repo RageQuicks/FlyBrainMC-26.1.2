@@ -66,6 +66,7 @@ public final class SensoryEncoders {
     // mechanosensation
     private final int[] joAuditoryL, joAuditoryR, joWindL, joWindR, joGroom, bmHead, bmEye, bmTaste;
     private final int[] tactileLegs, tactileWing, tactileNotum, tactileAbdomen, proprioHaltere, proprioLegHairPlates;
+    private final int[] npf, snpf, dilp;
     // thermo / hygro
     private final int[] trnHot, trnCold, hrnDry, hrnMoist;
     // visual projection neurons per side
@@ -134,6 +135,9 @@ public final class SensoryEncoders {
         tactileAbdomen = pi.resolve("class:mechanosensory_tactile&nerve:AbN3,class:mechanosensory_tactile&nerve:AbN4");
         proprioHaltere = pi.resolve("class:mechanosensory_proprioceptive&subclass:haltere");
         proprioLegHairPlates = pi.resolve("class:mechanosensory_proprioceptive&subclass:hair plate");
+        npf = optional(pi, "NPF");
+        snpf = optional(pi, "sNPF");
+        dilp = optional(pi, "DILP,ILP");
         trnHot = pi.resolve("TRN_VP2");
         trnCold = pi.resolve("TRN_VP3a,TRN_VP3b");
         hrnDry = pi.resolve("HRN_VP4");
@@ -187,6 +191,7 @@ public final class SensoryEncoders {
 
     /** Apply one tick of sensory input. {@code dtMs} = elapsed brain time since the previous call. */
     public void apply(SensoryFrame f, LifNetwork net, double dtMs) {
+        applyInternalState(f, net);
         if (p.olfaction) applyOlfaction(f, net, dtMs);
         if (p.gustation) applyGustation(f, net);
         if (p.mechanosensation) applyMechanosensation(f, net);
@@ -208,6 +213,12 @@ public final class SensoryEncoders {
             if (isVp) continue; // hygro/thermo handled separately
             double drive = f.odor.getOrDefault(glom, 0f);
             double[] ad = ornAdapt.get(glom);
+            // Starvation biologically sensitizes appetitive ORNs, especially DM1/VA2,
+            // while aversive DM5 signalling is comparatively suppressed.
+            double stateGain = 1.0;
+            if (glom.equals("DM1") || glom.equals("VA2")) stateGain += 1.8 * f.hunger;
+            if (glom.equals("DM5")) stateGain *= (1.0 - 0.55 * f.hunger);
+            drive *= stateGain;
             ad[0] += aAdapt * (drive - ad[0]);
             double eff = Math.max(0, drive - p.ornAdaptFraction * ad[0]);
             double rate = p.ornSpont + (p.ornRMax - p.ornSpont) * hill(eff);
@@ -217,11 +228,33 @@ public final class SensoryEncoders {
         }
     }
 
+    // ------------------------------------------------------------------ internal homeostasis
+
+    private void applyInternalState(SensoryFrame f, LifNetwork net) {
+        // These are homeostatic/neuromodulatory drives, not behavioural commands.
+        // They stand in for the endocrine state reaching NPF/sNPF/insulin systems.
+        setRates(net, npf, 35.0 * f.hunger);
+        setRates(net, snpf, 28.0 * f.hunger);
+        setRates(net, dilp, 20.0 * f.satiety());
+    }
+
+    private static int[] optional(PopulationIndex pi, String spec) {
+        try {
+            return pi.resolve(spec);
+        } catch (IllegalArgumentException ignored) {
+            return new int[0];
+        }
+    }
+
     // ------------------------------------------------------------------ gustation
 
     private void applyGustation(SensoryFrame f, LifNetwork net) {
         for (Map.Entry<String, int[]> e : grnByType.entrySet()) {
             double drive = f.taste.getOrDefault(e.getKey(), 0f);
+            double stateGain = e.getKey().contains("LB3") || e.getKey().contains("LgLG3") || e.getKey().contains("PhG1")
+                    ? 1.0 + 1.5 * f.hunger
+                    : 1.0 - 0.35 * f.hunger;
+            drive *= Math.max(0.1, stateGain);
             double rate = drive <= 0 ? p.grnSpont : p.grnSpont + (p.grnRMax - p.grnSpont) * hill(drive);
             setRates(net, e.getValue(), rate);
         }
