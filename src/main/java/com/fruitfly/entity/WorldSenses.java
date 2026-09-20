@@ -126,6 +126,7 @@ public final class WorldSenses {
         double lambda = cfg.odorFalloffBlocks;
         double bx = 0, bz = 0, total = 0;
         double foodBx = 0, foodBz = 0, foodTotal = 0;
+        double femaleBx = 0, femaleBz = 0, femaleTotal = 0;
         List<ItemEntity> items = level.getEntitiesOfClass(ItemEntity.class, fly.getBoundingBox().inflate(odorR), e -> true);
         for (ItemEntity it : items) {
             OdorTable.Odor o = OdorTable.forItem(it.getItem());
@@ -188,6 +189,11 @@ public final class WorldSenses {
                 } else {
                     frame.addOdor("VA1v", (float) (0.9 * conc));
                     frame.addOdor("VA1d", (float) (0.8 * conc));
+                    if (d > 1e-6) {
+                        femaleBx += rel.x / d * conc;
+                        femaleBz += rel.z / d * conc;
+                        femaleTotal += conc;
+                    }
                 }
                 if (other.getMode() == MotorDecoder.Mode.SONG && d < 3) frame.song = Math.max(frame.song, (float) (1 - d / 3));
             } else if (e instanceof net.minecraft.world.entity.player.Player) {
@@ -204,6 +210,11 @@ public final class WorldSenses {
             Vec3 foodBearing = new Vec3(foodBx, 0, foodBz);
             frame.foodDrive = (float) Math.min(1.5, foodTotal);
             frame.foodBearingDeg = toHead(foodBearing, yaw)[0];
+        }
+        if (femaleTotal > 1e-6) {
+            Vec3 femaleBearing = new Vec3(femaleBx, 0, femaleBz);
+            frame.femaleDrive = (float) Math.min(1.5, femaleTotal);
+            frame.femaleBearingDeg = toHead(femaleBearing, yaw)[0];
         }
         // clamp odor drive
         for (Map.Entry<String, Float> e : frame.odor.entrySet()) e.setValue(Math.min(1.5f, e.getValue()));
