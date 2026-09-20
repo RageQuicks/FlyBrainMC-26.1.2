@@ -67,8 +67,6 @@ public final class OdorTable {
         ITEMS.put(Items.BEETROOT, odor(0.6f, "DA2", 0.5, "DL5", 0.4));
         ITEMS.put(Items.CHORUS_FRUIT, odor(0.8f, "DM1", 0.6, "VL2a", 0.5));
         ITEMS.put(Items.DRIED_KELP, odor(0.4f, "VM1", 0.4, "VC5", 0.3));
-        ITEMS.put(Items.COOKED_BEEF, odor(0.5f, "VM1", 0.5, "VC1", 0.3, "DP1l", 0.2));
-        ITEMS.put(Items.BEEF, odor(0.4f, "VM1", 0.4, "VC1", 0.2));
         ITEMS.put(Items.TORCH, odor(0.4f, "VC2", 0.6, "V", 0.4));
         ITEMS.put(Items.CAMPFIRE, odor(1.0f, "V", 0.9, "VC2", 0.8, "DP1l", 0.4, "VP2", 0.7));
 
