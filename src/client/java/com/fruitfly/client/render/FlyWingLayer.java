@@ -31,7 +31,7 @@ public final class FlyWingLayer extends RenderLayer<FlyRenderState, FlyModel> {
             for (float dz : GHOST_OFFSETS) {
                 model.leftWing.zRot = l + dz * blur;
                 model.rightWing.zRot = r - dz * blur;
-                collector.submitModel(model, state, poseStack, RenderType.entityTranslucent(texture), packedLight, 0, 0x50FFFFFF, null, state.outlineColor, null);
+                collector.submitModel(model, state, poseStack, RenderTypes.entityTranslucent(texture), packedLight, 0, 0x50FFFFFF, null, state.outlineColor, null);
             }
             model.leftWing.zRot = l;
             model.rightWing.zRot = r;
