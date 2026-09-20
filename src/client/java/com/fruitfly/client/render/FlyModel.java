@@ -100,6 +100,7 @@ public class FlyModel extends EntityModel<FlyRenderState> {
     }
 
     public FlyModel(ModelPart root) {
+        super(root);
         this.root = root;
         this.body = root.getChild("body");
         this.thorax = body.getChild("thorax");
@@ -358,7 +359,7 @@ public class FlyModel extends EntityModel<FlyRenderState> {
     }
 
     /** Smooth the synched behaviour booleans into 0..1 blends so wings/legs do not pop between poses. */
-    private AnimState advance(FlyRenderState fly, float fly.ageInTicks) {
+    private AnimState advance(FlyRenderState fly, float ageInTicks) {
         AnimState st = states.computeIfAbsent(fly.entityId, k -> new AnimState());
         float dt = Float.isNaN(st.lastAge) ? 1F : Mth.clamp(fly.ageInTicks - st.lastAge, 0F, 1F);
         st.lastAge = fly.ageInTicks;
