@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,13 +28,13 @@ public final class DebugFlySpawner {
                 spawnAround(anchor, FruitFlyMod.CONFIG.debugStartFlyCount);
             }
 
-            leashAll(server.getAllLevels(), anchor);
+            leashAll(server.getAllLevels());
         });
     }
 
     private static void spawnAround(ServerPlayer anchor, int count) {
         if (count <= 0) return;
-        ServerLevel world = anchor.serverLevel();
+        ServerLevel world = (ServerLevel) anchor.level();
         List<FlyEntity> existing = new ArrayList<>();
         world.getEntities(FruitFlyMod.FRUIT_FLY,
                 e -> e.isAlive() && e.distanceToSqr(anchor) <= 32.0 * 32.0, existing);
@@ -56,12 +57,12 @@ public final class DebugFlySpawner {
         FruitFlyMod.LOGGER.info("Debug population: spawned {} fruit flies around {}", needed, anchor.getGameProfile().name());
     }
 
-    private static void leashAll(Iterable<ServerLevel> levels, ServerPlayer preferredAnchor) {
+    private static void leashAll(Iterable<ServerLevel> levels) {
         for (ServerLevel level : levels) {
             List<FlyEntity> flies = new ArrayList<>();
             level.getEntities(FruitFlyMod.FRUIT_FLY, e -> e.isAlive(), flies);
             for (FlyEntity fly : flies) {
-                ServerPlayer nearest = nearestPlayer(fly, preferredAnchor);
+                ServerPlayer nearest = nearestPlayer(fly);
                 if (nearest == null) continue;
 
                 double max = Math.max(4.0, FruitFlyMod.CONFIG.debugLeashRadius);
@@ -82,13 +83,14 @@ public final class DebugFlySpawner {
         }
     }
 
-    private static ServerPlayer nearestPlayer(FlyEntity fly, ServerPlayer preferred) {
-        ServerPlayer best = preferred;
-        double bestD2 = preferred == null ? Double.MAX_VALUE : fly.distanceToSqr(preferred);
-        for (ServerPlayer p : fly.level().players()) {
-            double d2 = fly.distanceToSqr(p);
+    private static ServerPlayer nearestPlayer(FlyEntity fly) {
+        ServerPlayer best = null;
+        double bestD2 = Double.MAX_VALUE;
+        for (Player player : fly.level().players()) {
+            if (!(player instanceof ServerPlayer serverPlayer)) continue;
+            double d2 = fly.distanceToSqr(serverPlayer);
             if (d2 < bestD2) {
-                best = p;
+                best = serverPlayer;
                 bestD2 = d2;
             }
         }
