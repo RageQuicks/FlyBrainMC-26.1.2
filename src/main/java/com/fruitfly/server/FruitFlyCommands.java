@@ -70,10 +70,12 @@ public final class FruitFlyCommands {
         Vec3 p = src.getPosition();
         int spawned = 0;
         for (int i = 0; i < count; i++) {
-            FlyEntity fly = FruitFlyMod.FRUIT_FLY.create(level);
+            FlyEntity fly = FruitFlyMod.FRUIT_FLY.create(level, EntitySpawnReason.COMMAND);
             if (fly == null) break;
             double a = i * 2 * Math.PI / Math.max(1, count);
-            fly.moveTo(p.x + Math.cos(a) * 0.8 * (count > 1 ? 1 : 0), p.y + 0.5, p.z + Math.sin(a) * 0.8 * (count > 1 ? 1 : 0), level.getRandom().nextFloat() * 360f, 0f);
+            fly.setPos(p.x + Math.cos(a) * 0.8 * (count > 1 ? 1 : 0), p.y + 0.5, p.z + Math.sin(a) * 0.8 * (count > 1 ? 1 : 0));
+            fly.setYRot(level.getRandom().nextFloat() * 360f);
+            fly.setXRot(0f);
             fly.setMale(male);
             fly.setFlyScale(scale);
             // assigns the persistent fly number + coloured name tag before the spawn packet, so clients never see "Fly-?"
