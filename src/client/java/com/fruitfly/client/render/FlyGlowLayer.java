@@ -1,8 +1,9 @@
 package com.fruitfly.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
@@ -22,6 +23,6 @@ public final class FlyGlowLayer extends RenderLayer<FlyRenderState, FlyModel> {
         FlyModel model = getParentModel();
         model.setupAnim(state);
         Identifier texture = state.male ? FlyRendererTexture.MALE : FlyRendererTexture.FEMALE;
-        collector.submitModel(model, state, poseStack, RenderType.entityTranslucentEmissive(texture), LightTexture.FULL_BRIGHT, 0, (alpha << 24) | 0x00FF8CCD, null);
+        collector.submitModel(model, state, poseStack, RenderTypes.entityTranslucentEmissive(texture), LightCoordsUtil.FULL_BRIGHT, 0, (alpha << 24) | 0x00FF8CCD, null, state.outlineColor, null);
     }
 }
