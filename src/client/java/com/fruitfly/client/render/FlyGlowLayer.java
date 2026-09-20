@@ -9,7 +9,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.util.FastColor;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
 /**
@@ -33,7 +33,7 @@ public final class FlyGlowLayer extends RenderLayer<FlyEntity, FlyModel> {
         // shaders' 0.1 discard threshold
         float shimmer = 0.85F + 0.15F * Mth.sin(ageInTicks * 0.31F);
         int alpha = Mth.clamp((int) ((40F + 110F * activity) * shimmer), 32, 160);
-        int tint = FastColor.ARGB32.color(alpha, 255, 140, 205);
+        int tint = ARGB.color(alpha, 255, 140, 205);
         FlyModel model = getParentModel();
         VertexConsumer vc = buffers.getBuffer(RenderType.entityTranslucentEmissive(getTextureLocation(fly)));
         poseStack.pushPose();
