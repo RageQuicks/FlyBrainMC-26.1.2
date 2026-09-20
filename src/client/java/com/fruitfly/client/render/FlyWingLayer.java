@@ -20,7 +20,7 @@ import net.minecraft.util.ARGB;
  * times the membrane alpha (110/255) must stay above that: 0.31 * 0.43 = 0.135.
  */
 public final class FlyWingLayer extends RenderLayer<FlyEntity, FlyModel> {
-    private static final int GHOST_TINT = FastColor.ARGB32.color(80, 255, 255, 255);
+    private static final int GHOST_TINT = ARGB.color(80, 255, 255, 255);
     private static final float[] GHOST_OFFSETS = {-0.65F, 0.65F};
 
     public FlyWingLayer(RenderLayerParent<FlyEntity, FlyModel> parent) {
