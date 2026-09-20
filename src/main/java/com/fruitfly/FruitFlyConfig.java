@@ -21,7 +21,7 @@ public final class FruitFlyConfig {
     /** Worker threads per brain (0 = auto). */
     public int brainThreads = 0;
     /** Maximum simultaneously simulated flies. Flies without a brain are inert until a brain becomes available. */
-    public int maxBrains = 16;
+    public int maxBrains = 10;
     /** Postsynaptic input gain for Kenyon cells (sparse coding correction; 1 = literal). */
     public double kenyonCellInputGain = 0.25;
     /** Postsynaptic input gain for antennal-lobe projection neurons (1 = literal). */
@@ -56,13 +56,11 @@ public final class FruitFlyConfig {
     public boolean flightEnabled = true;
     public boolean spawnEggInCreativeTab = true;
 
-    // --- ecology / physiology ---
-    /** Adult flies maintained around each loaded village cluster. */
-    public int villageFlyTarget = 10;
-    /** Villagers within this radius are considered one village cluster for fly population purposes. */
-    public double villageClusterRadius = 48;
-    /** Population maintenance interval in ticks. */
-    public int villageSpawnCheckTicks = 200;
+    // --- debug ecology ---
+    /** Number of flies spawned around the first player when the server/world begins. */
+    public int debugStartFlyCount = 10;
+    /** Maximum distance from the nearest player; beyond this the debug leash returns the fly inward. */
+    public double debugLeashRadius = 32;
 
     // --- telemetry / debug ---
     /**
