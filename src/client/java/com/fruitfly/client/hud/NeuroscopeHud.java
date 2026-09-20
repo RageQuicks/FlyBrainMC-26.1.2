@@ -329,7 +329,7 @@ public final class NeuroscopeHud {
         };
     }
 
-    static void bar(GuiGraphics g, int x, int y, int w, int h, float v, int color) {
+    static void bar(GuiGraphicsExtractor g, int x, int y, int w, int h, float v, int color) {
         if (w <= 0 || h <= 0) return;
         g.fill(x, y, x + w, y + h, HudStyle.BAR_BG);
         int fw = Math.round(Mth.clamp(v, 0f, 1f) * w);
@@ -337,7 +337,7 @@ public final class NeuroscopeHud {
     }
 
     /** −1..1 bar filling from the centre: negative to the left, positive to the right. */
-    static void bipolarBar(GuiGraphics g, int x, int y, int w, int h, float v, int color) {
+    static void bipolarBar(GuiGraphicsExtractor g, int x, int y, int w, int h, float v, int color) {
         if (w <= 0 || h <= 0) return;
         g.fill(x, y, x + w, y + h, HudStyle.BAR_BG);
         int mid = x + w / 2;
@@ -354,7 +354,7 @@ public final class NeuroscopeHud {
      * One eye: each coarse ray is placed on a gridW x gridH cell grid by its (azimuth, elevation) within the eye's
      * extent (x increases with azimuth, y increases downward with decreasing elevation) and filled with its color or luminance.
      */
-    private static void drawEye(GuiGraphics g, RetinaGeometry geom, int side, byte[] rays, int offset, boolean isColor, int x, int y, int w, int h) {
+    private static void drawEye(GuiGraphicsExtractor g, RetinaGeometry geom, int side, byte[] rays, int offset, boolean isColor, int x, int y, int w, int h) {
         List<RetinaGeometry.Ray> list = geom.rays(side);
         int n = list.size();
         if (n == 0) return;
@@ -392,7 +392,7 @@ public final class NeuroscopeHud {
     }
 
     /** Fallback when no retina geometry is available on this client: rays as a two-row strip, left half then right. */
-    private static void drawStrip(GuiGraphics g, byte[] rays, int x, int y, int w, int h) {
+    private static void drawStrip(GuiGraphicsExtractor g, byte[] rays, int x, int y, int w, int h) {
         boolean isColor = rays.length % 3 == 0 && rays.length > 300;
         int count = isColor ? rays.length / 3 : rays.length;
         int rows = 4;
@@ -413,7 +413,7 @@ public final class NeuroscopeHud {
         }
     }
 
-    private static void renderOdorMap(GuiGraphics g, Font font, int x, int y, int w, int h, String[] names, float[] values, float bearing) {
+    private static void renderOdorMap(GuiGraphicsExtractor g, Font font, int x, int y, int w, int h, String[] names, float[] values, float bearing) {
         // Left side: circular compass dial showing odor bearing (fly forward is straight up)
         int compassSize = h - 4;
         int cx = x + 2 + compassSize / 2, cy = y + 2 + compassSize / 2;
