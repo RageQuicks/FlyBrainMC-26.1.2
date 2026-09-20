@@ -66,7 +66,7 @@ public final class BrainViewHud {
     private static float[] heat;
     private static NativeImage bgImg, heatImg;
     private static DynamicTexture bgTex, heatTex;
-    private static ResourceLocation bgLoc, heatLoc;
+    private static Identifier bgLoc, heatLoc;
     private static boolean loggedBuild;
 
     // activity state
