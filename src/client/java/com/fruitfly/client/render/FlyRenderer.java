@@ -37,7 +37,7 @@ public class FlyRenderer extends MobRenderer<FlyEntity, FlyModel> {
     }
 
     @Override
-    public ResourceLocation getTextureLocation(FlyEntity fly) {
+    public Identifier getTextureLocation(FlyEntity fly) {
         return fly.isMale() ? TEXTURE_MALE : TEXTURE_FEMALE;
     }
 }
