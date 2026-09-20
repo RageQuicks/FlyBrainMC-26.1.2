@@ -106,6 +106,19 @@ public final class FlyBody {
         }
         if (mode != MotorDecoder.Mode.ESCAPE) st.escapeTicks = 0;
 
+        // Food-seeking taxis is deliberately a very small high-level reflex layered on top of the
+        // connectome.  The avoidance reflex already works, but the current connectome does not turn
+        // Minecraft item odor into locomotion reliably.  Give actual plant/sugar food a directional
+        // drive while leaving the neural feed/taste behavior intact.
+        if (cfg.reflexLayer && frame != null && frame.foodDrive > 0.03f
+                && !Float.isNaN(frame.foodBearingDeg) && mode != MotorDecoder.Mode.ESCAPE) {
+            double b = frame.foodBearingDeg;
+            double strength = Math.min(1.0, frame.foodDrive * 1.8);
+            yaw = Mth.clamp(b / 55.0, -1, 1) * (0.35 + 0.45 * strength);
+            fwd = Math.max(fwd, 0.35 + 0.45 * strength);
+            st.reflexDriving = true;
+        }
+
         // smooth commands (DN → behaviour lag ~150 ms already consumed by the decoder; this removes tick jitter)
         st.smoothedForward += 0.35 * (fwd - st.smoothedForward);
         st.smoothedYaw += 0.35 * (yaw - st.smoothedYaw);
