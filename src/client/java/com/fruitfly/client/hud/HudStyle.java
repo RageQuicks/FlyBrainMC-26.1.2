@@ -141,10 +141,10 @@ final class HudStyle {
 
     static int grey(int lum) {
         int l = Math.max(0, Math.min(255, lum));
-        return FastColor.ARGB32.color(255, l, l, l);
+        return ARGB.color(255, l, l, l);
     }
 
     static int color(int r, int g, int b) {
-        return FastColor.ARGB32.color(255, Math.max(0, Math.min(255, r)), Math.max(0, Math.min(255, g)), Math.max(0, Math.min(255, b)));
+        return ARGB.color(255, Math.max(0, Math.min(255, r)), Math.max(0, Math.min(255, g)), Math.max(0, Math.min(255, b)));
     }
 }
