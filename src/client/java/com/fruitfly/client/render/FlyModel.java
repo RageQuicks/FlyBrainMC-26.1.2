@@ -205,9 +205,6 @@ public class FlyModel extends EntityModel<FlyRenderState> {
         return LayerDefinition.create(mesh, 64, 64);
     }
 
-    @Override
-    public ModelPart root() { return root; }
-
     /** 0..1: how strongly the wing layer should draw motion-blur ghost strokes for the fly rendered last. */
     public float wingBlur() { return wingBlur; }
 
@@ -220,13 +217,13 @@ public class FlyModel extends EntityModel<FlyRenderState> {
     public void setupAnim(FlyRenderState fly) {
         super.setupAnim(fly);
         root.getAllParts().forEach(ModelPart::resetPose);
-        AnimState st = advance(fly, ageInTicks);
+        AnimState st = advance(fly, fly.ageInTicks);
         float fl = st.flight;                 // 0 walking .. 1 flying
         float gr = st.groom;                  // 0 .. 1 grooming
         float so = st.song;                   // 0 .. 1 singing (unilateral wing extension)
         float fe = Mth.clamp(fly.proboscis, 0F, 1F);   // proboscis extension (already smooth, from the body)
         boolean flapping = fly.flapping;
-        float t = ageInTicks * 2.1F;          // wing beat cadence (2.1 rad/tick, vanilla bee)
+        float t = fly.ageInTicks * 2.1F;          // wing beat cadence (2.1 rad/tick, vanilla bee)
         wingBlur = flapping ? Math.max(fl, 0.5F) : fl;
         wingBlurTime = t;
 
@@ -235,11 +232,11 @@ public class FlyModel extends EntityModel<FlyRenderState> {
         head.xRot = fly.headPitch * Mth.DEG_TO_RAD * 0.4F;
 
         // ---- idle life: antenna twitch, abdominal breathing
-        float idle = Mth.cos(ageInTicks * 0.18F);
+        float idle = Mth.cos(fly.ageInTicks * 0.18F);
         leftAntenna.xRot += idle * 0.08F;
-        rightAntenna.xRot += Mth.cos(ageInTicks * 0.18F + 1.3F) * 0.07F;
-        abdomen.zScale = 1F + Mth.sin(ageInTicks * 0.18F) * 0.03F;
-        abdomen.yScale = 1F + Mth.sin(ageInTicks * 0.18F + 0.5F) * 0.02F;
+        rightAntenna.xRot += Mth.cos(fly.ageInTicks * 0.18F + 1.3F) * 0.07F;
+        abdomen.zScale = 1F + Mth.sin(fly.ageInTicks * 0.18F) * 0.03F;
+        abdomen.yScale = 1F + Mth.sin(fly.ageInTicks * 0.18F + 0.5F) * 0.02F;
 
         // ---- legs: tripod gait (blended out while flying/grooming)
         float walk = (1F - fl) * (1F - gr);
@@ -284,7 +281,7 @@ public class FlyModel extends EntityModel<FlyRenderState> {
             float yawRate = Mth.wrapDegrees(fly.bodyYaw - fly.oldBodyYaw);
             body.xRot += fl * (-0.25F - climb);
             body.zRot += fl * -Mth.clamp(yawRate * 0.03F, -0.5F, 0.5F);
-            body.y += fl * (-1.0F + Mth.sin(ageInTicks * 0.35F) * 0.4F);
+            body.y += fl * (-1.0F + Mth.sin(fly.ageInTicks * 0.35F) * 0.4F);
             // antennae blown back a little by the airflow
             leftAntenna.xRot += fl * 0.2F;
             rightAntenna.xRot += fl * 0.2F;
@@ -294,9 +291,9 @@ public class FlyModel extends EntityModel<FlyRenderState> {
         if (so > 0.001F) {
             float side = st.songSide == 2 ? -1F : 1F;              // 1 = left wing, 2 = right wing
             ModelPart w = side > 0 ? leftWing : rightWing;
-            float env = 0.5F + 0.5F * Mth.sin(ageInTicks * 0.6F);   // pulse/sine bouts alternate every ~1 s
+            float env = 0.5F + 0.5F * Mth.sin(fly.ageInTicks * 0.6F);   // pulse/sine bouts alternate every ~1 s
             w.yRot = Mth.lerp(so, w.yRot, side * 1.1F);
-            w.zRot = Mth.lerp(so, w.zRot, side * -0.1F + Mth.sin(ageInTicks * 4.0F) * 0.08F * env);
+            w.zRot = Mth.lerp(so, w.zRot, side * -0.1F + Mth.sin(fly.ageInTicks * 4.0F) * 0.08F * env);
             w.xRot = Mth.lerp(so, w.xRot, -0.1F);
             abdomen.yRot += so * side * 0.15F;
             head.yRot += so * side * 0.15F;
@@ -304,7 +301,7 @@ public class FlyModel extends EntityModel<FlyRenderState> {
 
         // ---- grooming: 6 Hz rubs; kind 1 antennal sweep, 2 head rub, 3 leg rubbing, 4 abdomen sweep
         if (gr > 0.001F) {
-            float g = Mth.sin(ageInTicks * 1.9F);                  // 1.9 rad/tick = 6 Hz
+            float g = Mth.sin(fly.ageInTicks * 1.9F);                  // 1.9 rad/tick = 6 Hz
             byte kind = st.groomKind;
             Leg l1 = legs[0], r1 = legs[1], l3 = legs[4], r3 = legs[5];
             switch (kind) {
@@ -344,7 +341,7 @@ public class FlyModel extends EntityModel<FlyRenderState> {
         // ---- feeding: proboscis unfolds forward/down, telescopes, labellar lobes spread, head tips to the food
         if (fe > 0.001F) {
             proboscis.xRot = Mth.lerp(fe, 1.2F, -0.15F);
-            float pump = fe * Mth.sin(ageInTicks * 0.9F) * 0.08F;
+            float pump = fe * Mth.sin(fly.ageInTicks * 0.9F) * 0.08F;
             float ys = Mth.lerp(fe, 1.0F, 1.8F) + pump;
             proboscis.yScale = ys;
             labellum.yScale = 1F / ys;                              // keep the labellum 1 px tall at the moving tip
@@ -361,10 +358,10 @@ public class FlyModel extends EntityModel<FlyRenderState> {
     }
 
     /** Smooth the synched behaviour booleans into 0..1 blends so wings/legs do not pop between poses. */
-    private AnimState advance(FlyRenderState fly, float ageInTicks) {
+    private AnimState advance(FlyRenderState fly, float fly.ageInTicks) {
         AnimState st = states.computeIfAbsent(fly.entityId, k -> new AnimState());
-        float dt = Float.isNaN(st.lastAge) ? 1F : Mth.clamp(ageInTicks - st.lastAge, 0F, 1F);
-        st.lastAge = ageInTicks;
+        float dt = Float.isNaN(st.lastAge) ? 1F : Mth.clamp(fly.ageInTicks - st.lastAge, 0F, 1F);
+        st.lastAge = fly.ageInTicks;
         boolean flying = fly.flyingState || fly.flapping;
         byte groom = fly.groomState;
         byte wing = fly.wingExtension;
