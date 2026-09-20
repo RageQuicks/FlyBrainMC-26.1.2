@@ -117,7 +117,7 @@ public final class NeuroscopeHud {
             pose.translate(guiW - PANEL_W * s - 4, 4);
             pose.scale(s, s);
             g.fill(0, 0, PANEL_W, h, HudStyle.BG);
-            g.renderOutline(0, 0, PANEL_W, h, HudStyle.BORDER);
+            g.outline(0, 0, PANEL_W, h, HudStyle.BORDER);
             int y = PAD;
             g.text(font, "NEUROSCOPE", PAD, y, HudStyle.ACCENT, false);
             g.text(font, datasetName(), PAD + font.width("NEUROSCOPE  "), y, HudStyle.TEXT, false);
