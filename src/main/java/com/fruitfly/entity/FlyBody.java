@@ -119,6 +119,22 @@ public final class FlyBody {
             st.reflexDriving = true;
         }
 
+        // Brain-derived courtship taxis: pC1 is a persistent courtship state in the connectome.
+        // When the male's brain enters that state and female pheromone is detected, steer toward
+        // the female. Song remains a separate pIP10-driven stationary behavior, so the sequence
+        // naturally becomes approach → courtship song.
+        if (cfg.reflexLayer && frame != null && cmd != null && fly.isMale()
+                && cmd.courtship > 0.10 && frame.femaleDrive > 0.03f
+                && !Float.isNaN(frame.femaleBearingDeg)
+                && mode != MotorDecoder.Mode.ESCAPE && mode != MotorDecoder.Mode.FLYING
+                && mode != MotorDecoder.Mode.LANDING && mode != MotorDecoder.Mode.SONG) {
+            double b = frame.femaleBearingDeg;
+            double strength = Math.min(1.0, cmd.courtship * 1.5);
+            yaw = Mth.clamp(b / 50.0, -1, 1) * (0.25 + 0.40 * strength);
+            fwd = Math.max(fwd, 0.20 + 0.35 * strength);
+            st.reflexDriving = true;
+        }
+
         // smooth commands (DN → behaviour lag ~150 ms already consumed by the decoder; this removes tick jitter)
         st.smoothedForward += 0.35 * (fwd - st.smoothedForward);
         st.smoothedYaw += 0.35 * (yaw - st.smoothedYaw);
