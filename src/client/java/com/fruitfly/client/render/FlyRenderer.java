@@ -6,7 +6,7 @@ import com.fruitfly.entity.FlyEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 /**
  * Renders {@link FlyEntity} with {@link FlyModel}. The model is built at bee scale, so it is shrunk by
