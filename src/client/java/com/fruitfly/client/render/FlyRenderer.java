@@ -8,12 +8,8 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.resources.Identifier;
 
-/**
- * Renders {@link FlyEntity} with {@link FlyModel}. The model is built at bee scale, so it is shrunk by
- * {@code 0.6 * flyScale} here (fly scale 1.0 = the 0.5 x 0.3 block hitbox). Body opaque via the model's default
- * {@code entityCutoutNoCull}; wings translucent via {@link FlyWingLayer}; activity glow via {@link FlyGlowLayer}.
- */
-public class FlyRenderer extends MobRenderer<FlyEntity, FlyModel> {
+/** Renders a fruit fly from an extracted render state. */
+public class FlyRenderer extends MobRenderer<FlyEntity, FlyRenderState, FlyModel> {
     private static final Identifier TEXTURE_MALE = FruitFlyMod.id("textures/entity/fruit_fly.png");
     private static final Identifier TEXTURE_FEMALE = FruitFlyMod.id("textures/entity/fruit_fly_female.png");
     private static final float BASE_SCALE = 0.6F;
@@ -26,18 +22,45 @@ public class FlyRenderer extends MobRenderer<FlyEntity, FlyModel> {
     }
 
     @Override
-    protected void scale(FlyEntity fly, PoseStack poseStack, float partialTick) {
-        float s = BASE_SCALE * fly.getFlyScale();
+    public FlyRenderState createRenderState() {
+        return new FlyRenderState();
+    }
+
+    @Override
+    public void extractRenderState(FlyEntity fly, FlyRenderState state, float partialTick) {
+        super.extractRenderState(fly, state, partialTick);
+        state.entityId = fly.getId();
+        state.male = fly.isMale();
+        state.flyScale = fly.getFlyScale();
+        state.proboscis = fly.getProboscis();
+        state.flapping = fly.isFlapping();
+        state.flyingState = fly.isFlyingState();
+        state.groomState = fly.getGroomState();
+        state.wingExtension = fly.getWingExtension();
+        state.verticalVelocity = (float) fly.getDeltaMovement().y;
+        state.bodyYaw = fly.yBodyRot;
+        state.oldBodyYaw = fly.yBodyRotO;
+        state.headYaw = fly.getYRot();
+        state.headPitch = fly.getXRot();
+        state.activity = fly.getActivity();
+        state.hasBrain = fly.hasBrain();
+        state.flyColor = fly.getFlyColor();
+        state.flyName = fly.flyName();
+    }
+
+    @Override
+    protected void scale(FlyRenderState state, PoseStack poseStack) {
+        float s = BASE_SCALE * state.flyScale;
         poseStack.scale(s, s, s);
     }
 
     @Override
-    protected float getShadowRadius(FlyEntity fly) {
-        return SHADOW_RADIUS * fly.getFlyScale();
+    protected float getShadowRadius(FlyRenderState state) {
+        return SHADOW_RADIUS * state.flyScale;
     }
 
     @Override
-    public Identifier getTextureLocation(FlyEntity fly) {
-        return fly.isMale() ? TEXTURE_MALE : TEXTURE_FEMALE;
+    public Identifier getTextureLocation(FlyRenderState state) {
+        return state.male ? TEXTURE_MALE : TEXTURE_FEMALE;
     }
 }
