@@ -157,7 +157,7 @@ public final class NeuroscopeHud {
         pose.scale(s, s);
 
         g.fill(0, 0, PANEL_W, height, HudStyle.BG);
-        g.renderOutline(0, 0, PANEL_W, height, HudStyle.BORDER);
+        g.outline(0, 0, PANEL_W, height, HudStyle.BORDER);
         int x = PAD, y = PAD;
 
         // ---- title
