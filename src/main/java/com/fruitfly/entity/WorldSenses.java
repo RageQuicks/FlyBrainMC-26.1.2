@@ -206,7 +206,13 @@ public final class WorldSenses {
             TasteTable.Taste t = TasteTable.forItem(it.getItem());
             if (t == null) continue;
             applyTaste(frame, t, proboscisOut);
-            if (proboscisOut) fly.feed(t.nutrition() * 0.02f);
+            if (proboscisOut && TasteTable.isFlyFood(it.getItem())) {
+                // Contact is the consummatory end of the behavior: once the fly is actually on
+                // the food with its proboscis extended, consume the item rather than merely
+                // increasing an abstract hunger meter.  The item entity is server-side here.
+                fly.feed(t.nutrition() * 0.2f);
+                it.discard();
+            }
         }
         BlockState below = level.getBlockState(pos.below());
         TasteTable.Taste tb = TasteTable.forBlock(below);
