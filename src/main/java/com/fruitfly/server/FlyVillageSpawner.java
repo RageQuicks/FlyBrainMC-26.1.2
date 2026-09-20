@@ -7,8 +7,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.npc.Villager;
-import net.minecraft.world.level.Heightmap;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
@@ -25,28 +24,26 @@ public final class FlyVillageSpawner {
     private FlyVillageSpawner() {}
 
     public static void register() {
-        ServerTickEvents.END_WORLD_TICK.register(FlyVillageSpawner::tick);
+        ServerTickEvents.END_SERVER_TICK.register(server -> { for (ServerLevel level : server.getAllLevels()) tick(level); });
     }
 
     private static void tick(ServerLevel world) {
         FruitFlyConfig cfg = FruitFlyMod.CONFIG;
         if (cfg.villageFlyTarget <= 0 || world.getGameTime() % Math.max(20, cfg.villageSpawnCheckTicks) != 0) return;
 
-        List<Villager> villagers = new ArrayList<>();
-        for (var entity : world.getEntities().getAll()) {
-            if (entity instanceof Villager villager && villager.isAlive()) villagers.add(villager);
-        }
+        List<net.minecraft.world.entity.Entity> villagers = new ArrayList<>();
+        world.getEntities(net.minecraft.world.entity.EntityType.VILLAGER, e -> e.isAlive(), villagers);
 
         Set<Integer> clustered = new HashSet<>();
         double radius = cfg.villageClusterRadius;
         double radius2 = radius * radius;
 
-        for (Villager seed : villagers) {
+        for (net.minecraft.world.entity.Entity seed : villagers) {
             if (!clustered.add(seed.getId())) continue;
 
-            List<Villager> cluster = new ArrayList<>();
+            List<net.minecraft.world.entity.Entity> cluster = new ArrayList<>();
             cluster.add(seed);
-            for (Villager other : villagers) {
+            for (net.minecraft.world.entity.Entity other : villagers) {
                 if (other == seed || clustered.contains(other.getId())) continue;
                 if (other.distanceToSqr(seed) <= radius2) {
                     cluster.add(other);
@@ -56,9 +53,9 @@ public final class FlyVillageSpawner {
 
             if (cluster.size() < 1) continue;
             int existing = 0;
-            for (var entity : world.getEntities().getAll()) {
-                if (entity instanceof FlyEntity fly && fly.isAlive() && fly.distanceToSqr(seed) <= radius2) existing++;
-            }
+            List<FlyEntity> nearby = new ArrayList<>();
+            world.getEntities(FruitFlyMod.FRUIT_FLY, e -> e.isAlive() && e.distanceToSqr(seed) <= radius2, nearby);
+            existing = nearby.size();
             int needed = Math.max(0, cfg.villageFlyTarget - existing);
             for (int i = 0; i < needed; i++) {
                 spawnOne(world, seed);
@@ -66,7 +63,7 @@ public final class FlyVillageSpawner {
         }
     }
 
-    private static void spawnOne(ServerLevel world, Villager anchor) {
+    private static void spawnOne(ServerLevel world, net.minecraft.world.entity.Entity anchor) {
         ThreadLocalRandom rng = ThreadLocalRandom.current();
         int x = anchor.blockPosition().getX() + rng.nextInt(-8, 9);
         int z = anchor.blockPosition().getZ() + rng.nextInt(-8, 9);
