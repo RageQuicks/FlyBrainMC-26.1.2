@@ -5,8 +5,6 @@ import com.fruitfly.brain.Connectome;
 import com.fruitfly.brain.MotorDecoder;
 import com.fruitfly.entity.FlyEntity;
 import com.fruitfly.net.BrainTelemetryPayload;
-import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
 import org.joml.Matrix3x2fStack;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -14,7 +12,6 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
@@ -64,16 +61,12 @@ public final class BrainViewHud {
     private static byte[] regionOf;      // neuron -> region id
     private static byte[] pixelRegion;   // pixel -> dominant region (or -1)
     private static float[] heat;
-    private static NativeImage bgImg, heatImg;
-    private static DynamicTexture bgTex, heatTex;
-    private static Identifier bgLoc, heatLoc;
     private static boolean loggedBuild;
 
     // activity state
     private static long lastSeq = -1;
     private static int lastFlyId = -1;
-    private static long lastFrameNanos, lastUploadNanos;
-    private static boolean heatDirty;
+    private static long lastFrameNanos;
     private static final int[] regionCounts = new int[REGIONS];
     private static final float[] regionPeak = new float[REGIONS];
     private static final int[] SPIKE_HIST = new int[RASTER_TICKS];
@@ -101,7 +94,6 @@ public final class BrainViewHud {
         if (heat != null) Arrays.fill(heat, 0f);
         Arrays.fill(regionCounts, 0);
         Arrays.fill(regionPeak, 0f);
-        heatDirty = true;
     }
 
     // ------------------------------------------------------------------ projection
@@ -118,7 +110,7 @@ public final class BrainViewHud {
     }
 
     private static void ensureBuilt(Connectome c) {
-        if (source == c && builtView == view && bgTex != null) return;
+        if (source == c && builtView == view) return;
         long t0 = System.nanoTime();
         int n = c.n;
         // --- data-derived axes ---
@@ -196,36 +188,16 @@ public final class BrainViewHud {
         }
         int maxCount = 1;
         for (int cnt : count) maxCount = Math.max(maxCount, cnt);
-        // --- textures ---
-        releaseTextures();
-        NativeImage bg = new NativeImage(w, h, true);
-        NativeImage ht = new NativeImage(w, h, true);
+        // --- map colors (kept as CPU-side pixel metadata; 26.1 GUI drawing uses render pipelines) ---
         byte[] pr = new byte[w * h];
         Arrays.fill(pr, (byte) -1);
         double logMax = Math.log1p(maxCount);
         for (int p = 0; p < w * h; p++) {
-            if (count[p] == 0) { bg.setPixelColor(p % w, p / w, 0); ht.setPixelRGBA(p % w, p / w, 0); continue; }
+            if (count[p] == 0) continue;
             int best = 0;
             for (int r = 1; r < REGIONS; r++) if (regionHist[p * REGIONS + r] > regionHist[p * REGIONS + best]) best = r;
             pr[p] = (byte) best;
-            float f = (float) (Math.log1p(count[p]) / logMax);
-            float bright = 0.30f + 0.65f * f;
-            int rgb = REGION_RGB[best];
-            int r = (int) (((rgb >> 16) & 255) * bright), gg = (int) (((rgb >> 8) & 255) * bright), b = (int) ((rgb & 255) * bright);
-            bg.setPixelRGBA(p % w, p / w, abgr(255, r, gg, b));
-            ht.setPixelRGBA(p % w, p / w, 0);
         }
-        Minecraft mc = Minecraft.getInstance();
-        bgImg = bg;
-        heatImg = ht;
-        bgTex = new DynamicTexture(bg);
-        heatTex = new DynamicTexture(ht);
-        bgLoc = mc.getTextureManager().register("fruitfly/brainview_bg", bgTex);
-        heatLoc = mc.getTextureManager().register("fruitfly/brainview_heat", heatTex);
-        texW = w;
-        texH = h;
-        upload(bgTex, bgImg);
-        upload(heatTex, heatImg);
         pixelOf = px;
         regionOf = new byte[n];
         for (int i = 0; i < n; i++) regionOf[i] = (byte) region[i];
@@ -241,28 +213,6 @@ public final class BrainViewHud {
             FruitFlyMod.LOGGER.info("Brain view: projected {} somata onto {}x{} ({} view; axes ap={}, lr={}, dv={}) in {} ms",
                     Arrays.stream(px).filter(q -> q >= 0).count(), w, h, view, ap, lr, dv, (System.nanoTime() - t0) / 1_000_000);
         }
-    }
-
-    private static void releaseTextures() {
-        Minecraft mc = Minecraft.getInstance();
-        if (bgLoc != null) mc.getTextureManager().release(bgLoc);
-        if (heatLoc != null) mc.getTextureManager().release(heatLoc);
-        bgLoc = heatLoc = null;
-        bgTex = heatTex = null;
-        bgImg = heatImg = null;
-    }
-
-    /**
-     * Upload the whole image with linear filtering and clamped edges. {@link DynamicTexture#upload()} would select
-     * GL_NEAREST, which drops single-texel spikes whenever the map is drawn smaller than the texture.
-     */
-    private static void upload(DynamicTexture tex, NativeImage img) {
-        tex.bind();
-        img.upload(0, 0, 0, 0, 0, texW, texH, true, true, false, false);
-    }
-
-    private static int abgr(int a, int r, int g, int b) {
-        return (a << 24) | (b << 16) | (g << 8) | r;
     }
 
     // ------------------------------------------------------------------ activity
@@ -284,27 +234,6 @@ public final class BrainViewHud {
             if (y < h - 1) heat[p + w] = Math.max(heat[p + w], 0.55f);
         }
         for (int r = 0; r < REGIONS; r++) regionPeak[r] = Math.max(regionPeak[r] * 0.97f, regionCounts[r]);
-        heatDirty = true;
-    }
-
-    private static void uploadHeat() {
-        int w = texW, h = texH;
-        for (int p = 0; p < w * h; p++) {
-            float v = heat[p];
-            if (v < 0.02f) {
-                if (heatImg.getPixelColor(p % w, p / w) != 0) heatImg.setPixelRGBA(p % w, p / w, 0);
-                continue;
-            }
-            int region = pixelRegion[p] < 0 ? 7 : pixelRegion[p];
-            int rgb = REGION_RGB[region];
-            // hot pixels tend to white-yellow, cooler ones keep the region hue
-            float wht = v * v;
-            int r = (int) Mth.lerp(wht, ((rgb >> 16) & 255) * 0.6f + 100, 255);
-            int g = (int) Mth.lerp(wht, ((rgb >> 8) & 255) * 0.6f + 100, 250);
-            int b = (int) Mth.lerp(wht, (rgb & 255) * 0.6f + 60, 200);
-            heatImg.setPixelRGBA(p % w, p / w, abgr((int) (255 * Math.min(1f, v)), Math.min(255, r), Math.min(255, g), Math.min(255, b)));
-        }
-        upload(heatTex, heatImg);
     }
 
     // ------------------------------------------------------------------ layout
@@ -365,7 +294,6 @@ public final class BrainViewHud {
             for (int i = 0; i < heat.length; i++) {
                 if (heat[i] > 0.005f) { heat[i] *= decay; any = true; } else heat[i] = 0f;
             }
-            if (any) heatDirty = true;
         }
         int flyId = fly == null ? -1 : fly.getId();
         if (flyId != lastFlyId) {
@@ -374,18 +302,12 @@ public final class BrainViewHud {
             Arrays.fill(heat, 0f);
             Arrays.fill(regionCounts, 0);
             Arrays.fill(regionPeak, 0f);
-            heatDirty = true;
         }
         if (entry != null && entry.seq() != lastSeq) {
             lastSeq = entry.seq();
             if (p != null) inject(p.spikeSample());
         }
         if (!fresh) Arrays.fill(regionCounts, 0); // stale payload: no spikes "this tick"
-        if (heatDirty && now - lastUploadNanos > 30_000_000L) {
-            uploadHeat();
-            heatDirty = false;
-            lastUploadNanos = now;
-        }
 
         // ---- layout in panel units, then one uniform scale so the panel fits the screen
         final int inner = innerWidth(font);
@@ -408,7 +330,7 @@ public final class BrainViewHud {
         final int idCol = fly == null ? 0 : 0xFF000000 | fly.getFlyColor();
         {
             g.fill(0, 0, panelW, panelH, HudStyle.BG);
-            g.renderOutline(0, 0, panelW, panelH, HudStyle.BORDER);
+            g.outline(0, 0, panelW, panelH, HudStyle.BORDER);
             if (idCol != 0) {
                 g.fill(pad, pad, pad + 7, pad + 7, idCol);
                 g.renderOutline(pad, pad, 7, 7, 0x80FFFFFF);
@@ -465,11 +387,29 @@ public final class BrainViewHud {
         }
         y = mapY;
 
-        // ---- brain map (immediate-mode blits; the inset fill above was flushed by drawManaged)
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        g.blit(bgLoc, x, y, imgW, imgH, 0f, 0f, texW, texH, texW, texH);
-        g.blit(heatLoc, x, y, imgW, imgH, 0f, 0f, texW, texH, texW, texH);
+        // ---- brain map: draw the cached region pixels directly with GUI fills
+        int cellScaleX = Math.max(1, imgW / texW);
+        int cellScaleY = Math.max(1, imgH / texH);
+        for (int py = 0; py < texH; py += 2) {
+            for (int px = 0; px < texW; px += 2) {
+                int pidx = py * texW + px;
+                int region = pixelRegion[pidx];
+                float hot = heat[pidx];
+                if (region < 0 && hot < 0.02f) continue;
+                int rgb = region < 0 ? 0xFFFFFF : REGION_RGB[region];
+                int rr = (rgb >> 16) & 255, gg = (rgb >> 8) & 255, bb = rgb & 255;
+                if (hot > 0.02f) {
+                    rr = (int) Mth.lerp(Math.min(1f, hot), rr, 255);
+                    gg = (int) Mth.lerp(Math.min(1f, hot), gg, 245);
+                    bb = (int) Mth.lerp(Math.min(1f, hot), bb, 180);
+                }
+                int alpha = hot > 0.02f ? 255 : 210;
+                        g.fill(x + px * imgW / texW, y + py * imgH / texH,
+                       x + Math.min(imgW, (px + 2) * imgW / texW),
+                       y + Math.min(imgH, (py + 2) * imgH / texH),
+                       (alpha << 24) | (rr << 16) | (gg << 8) | bb);
+            }
+        }
         // orientation labels
         switch (view) {
             case DORSAL -> {
