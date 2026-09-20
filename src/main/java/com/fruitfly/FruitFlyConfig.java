@@ -20,7 +20,7 @@ public final class FruitFlyConfig {
     public double synapticGain = 0.65;
     /** Worker threads per brain (0 = auto). */
     public int brainThreads = 0;
-    /** Maximum simultaneously simulated flies; additional flies idle with a reflex-only body. */
+    /** Maximum simultaneously simulated flies. Flies without a brain are inert until a brain becomes available. */
     public int maxBrains = 4;
     /** Postsynaptic input gain for Kenyon cells (sparse coding correction; 1 = literal). */
     public double kenyonCellInputGain = 0.25;
@@ -51,8 +51,8 @@ public final class FruitFlyConfig {
     public double flightSpeedBlocksPerS = 8.0;
     public double turnRateDegPerS = 300;
     public double flightTurnRateDegPerS = 600;
-    /** Hand-built reflex layer (odor taxis, exploration, collision avoidance) when the brain issues no command. */
-    public boolean reflexLayer = true;
+    /** Deprecated compatibility setting. Behavior is brain-only; this flag no longer drives movement. */
+    public boolean reflexLayer = false;
     public boolean flightEnabled = true;
     public boolean spawnEggInCreativeTab = true;
 
