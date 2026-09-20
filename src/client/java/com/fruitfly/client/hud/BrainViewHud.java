@@ -333,7 +333,7 @@ public final class BrainViewHud {
             g.outline(0, 0, panelW, panelH, HudStyle.BORDER);
             if (idCol != 0) {
                 g.fill(pad, pad, pad + 7, pad + 7, idCol);
-                g.renderOutline(pad, pad, 7, 7, 0x80FFFFFF);
+                g.outline(pad, pad, 7, 7, 0x80FFFFFF);
             }
             g.fill(pad, mapY, pad + imgW, mapY + imgH, HudStyle.BG_INSET);
         }
