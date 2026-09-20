@@ -1,7 +1,7 @@
 package com.fruitfly.client.hud;
 
 import com.fruitfly.brain.MotorDecoder;
-import net.minecraft.util.FastColor;
+import net.minecraft.util.ARGB;
 
 import java.util.Locale;
 
