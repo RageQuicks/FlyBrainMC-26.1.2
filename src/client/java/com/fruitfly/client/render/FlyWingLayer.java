@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
-import net.minecraft.util.FastColor;
+import net.minecraft.util.ARGB;
 
 /**
  * Draws the two wing quads with {@code RenderType.entityTranslucent} (alpha blended, two-sided, lit) so the membrane
