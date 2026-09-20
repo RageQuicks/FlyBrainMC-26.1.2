@@ -18,4 +18,6 @@ public final class FlyRenderState extends LivingEntityRenderState {
     public float headPitch;
     public float activity;
     public boolean hasBrain;
+    public int flyColor;
+    public String flyName;
 }
