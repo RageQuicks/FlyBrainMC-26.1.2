@@ -93,7 +93,10 @@ public final class FlyBrainService {
             return null;
         }
         if (runners.size() >= config.maxBrains) return null;
-        BrainRunner r = new BrainRunner(connectome, lifConfig(), config.brainMsPerTick, name);
+        LifConfig lc = lifConfig();
+        // Every fly gets an independent stochastic neural stream. Identical sensory input must not produce identical brains.
+        lc.seed ^= 0x9E3779B97F4A7C15L * (long) name.hashCode();
+        BrainRunner r = new BrainRunner(connectome, lc, config.brainMsPerTick, name);
         if (config.kenyonCellInputGain != 1.0) r.net.setPostsynapticGain(populations.resolve("prefix:KC"), config.kenyonCellInputGain);
         if (config.projectionNeuronInputGain != 1.0) r.net.setPostsynapticGain(populations.resolve("class:ALPN"), config.projectionNeuronInputGain);
         r.setActionErrorHandler(t -> FruitFlyMod.LOGGER.warn("Brain {}: queued action failed: {}", name, t.toString()));
