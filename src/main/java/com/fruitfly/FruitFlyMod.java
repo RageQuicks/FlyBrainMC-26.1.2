@@ -42,8 +42,8 @@ public final class FruitFlyMod implements ModInitializer {
             EntityType.Builder.of(FlyEntity::new, MobCategory.CREATURE)
                     .sized(0.5f, 0.3f)
                     .eyeHeight(0.2f)
-                    .setTrackingRange(10)
-                    .setUpdateInterval(1)
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
                     .build(ResourceKey.create(Registries.ENTITY_TYPE, id("fruit_fly"))));
 
     public static final Item FRUIT_FLY_SPAWN_EGG = Registry.register(
