@@ -125,6 +125,7 @@ public final class WorldSenses {
         double odorR = cfy(cfg.odorRadius);
         double lambda = cfg.odorFalloffBlocks;
         double bx = 0, bz = 0, total = 0;
+        double foodBx = 0, foodBz = 0, foodTotal = 0;
         List<ItemEntity> items = level.getEntitiesOfClass(ItemEntity.class, fly.getBoundingBox().inflate(odorR), e -> true);
         for (ItemEntity it : items) {
             OdorTable.Odor o = OdorTable.forItem(it.getItem());
@@ -137,6 +138,11 @@ public final class WorldSenses {
                 bx += rel.x / d * conc;
                 bz += rel.z / d * conc;
                 total += conc;
+                if (TasteTable.isFlyFood(it.getItem())) {
+                    foodBx += rel.x / d * conc;
+                    foodBz += rel.z / d * conc;
+                    foodTotal += conc;
+                }
             }
         }
         // --- olfaction: blocks (cached scan) ---
@@ -193,6 +199,11 @@ public final class WorldSenses {
         if (total > 1e-6) {
             Vec3 bearing = new Vec3(bx, 0, bz);
             frame.odorBearingDeg = toHead(bearing, yaw)[0];
+        }
+        if (foodTotal > 1e-6) {
+            Vec3 foodBearing = new Vec3(foodBx, 0, foodBz);
+            frame.foodDrive = (float) Math.min(1.5, foodTotal);
+            frame.foodBearingDeg = toHead(foodBearing, yaw)[0];
         }
         // clamp odor drive
         for (Map.Entry<String, Float> e : frame.odor.entrySet()) e.setValue(Math.min(1.5f, e.getValue()));
