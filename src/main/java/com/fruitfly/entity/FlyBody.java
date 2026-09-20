@@ -18,6 +18,7 @@ public final class FlyBody {
     public static final class State {
         public boolean flying;
         public double hoverY;
+        public boolean reflexDriving;
         public int escapeTicks;
         public float proboscis;
         public double smoothedForward, smoothedYaw;
