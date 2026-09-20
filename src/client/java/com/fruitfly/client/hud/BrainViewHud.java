@@ -35,7 +35,7 @@ import java.util.Locale;
  * <p>Layout is done in "panel units" (font pixels): the panel is as wide as its widest text row and the map fills that
  * width, then one uniform {@link PoseStack} scale shrinks the whole panel so it never exceeds 45 % of the screen width
  * or {@link #size()} of the screen height (same approach as {@link NeuroscopeHud}). Fills are batched with
- * {@link GuiGraphics#drawManaged} so the ~100 bars and outlines cost a handful of draw calls per frame.</p>
+ * {@link GuiGraphicsExtractor#drawManaged} so the ~100 bars and outlines cost a handful of draw calls per frame.</p>
  *
  * <p>Selection comes from {@link FlyFocus}; the focused fly's identity colour and name head the panel and match its
  * name tag and the in-world marker, so with several flies it is always clear whose brain this is.</p>
