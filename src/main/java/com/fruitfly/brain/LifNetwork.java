@@ -260,6 +260,27 @@ public final class LifNetwork {
 
     public void resetPlasticity() { System.arraycopy(basePreScale, 0, preScale, 0, n); }
 
+    /** Snapshot the mutable presynaptic efficacy vector for experimental inheritance. Call on the brain thread. */
+    public float[] copyPlasticityState() {
+        return Arrays.copyOf(preScale, preScale.length);
+    }
+
+    /** Load an inherited plasticity state, clamped to this network's biological bounds. Call on the brain thread. */
+    public void loadPlasticityState(float[] state) {
+        if (state == null || state.length != preScale.length) return;
+        for (int i = 0; i < preScale.length; i++) {
+            float base = basePreScale[i];
+            if (base == 0f) {
+                preScale[i] = 0f;
+                continue;
+            }
+            float lo = Math.abs(base) * 0.05f;
+            float hi = Math.abs(base) * 1.95f;
+            float mag = Math.max(lo, Math.min(hi, Math.abs(state[i])));
+            preScale[i] = (base < 0f ? -1f : 1f) * mag;
+        }
+    }
+
     // ------------------------------------------------------------------ stepping
 
     /** Advance one integration step (cfg.dtMs). */

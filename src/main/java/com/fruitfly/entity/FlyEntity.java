@@ -80,13 +80,37 @@ public class FlyEntity extends Mob {
     /** True for flies participating in the visible Minecraft learning colony. */
     private volatile boolean learningFly;
     private volatile double learningReward;
+    /** Latest captured plasticity state used by the experimental generation-to-generation inheritance layer. */
+    private volatile float[] learningMemory;
 
     public void setLearningSandbox(net.minecraft.world.phys.AABB bounds) {
         learningFly = bounds != null;
         learningReward = 0.0;
+        learningMemory = null;
     }
     public boolean isLearningFly() { return learningFly; }
     public double learningReward() { return learningReward; }
+
+    /** Set the scalar reinforcement signal consumed by the brain on its next post-step. */
+    public void setLearningReward(double reward) {
+        learningReward = Math.max(-1.0, Math.min(1.0, reward));
+    }
+
+    /** Queue a snapshot of the mutable synaptic efficacies onto this fly's brain thread. */
+    public void captureLearningMemory() {
+        BrainRunner r = brain;
+        if (r != null) r.submit(net -> learningMemory = net.copyPlasticityState());
+    }
+
+    /** Queue inherited synaptic efficacies onto this fly's brain thread. */
+    public void applyLearningMemory(float[] state) {
+        BrainRunner r = brain;
+        if (r != null && state != null) {
+            r.submit(net -> net.loadPlasticityState(state));
+        }
+    }
+
+    public float[] learningMemory() { return learningMemory; }
 
     public FlyEntity(EntityType<? extends FlyEntity> type, Level level) {
         super(type, level);

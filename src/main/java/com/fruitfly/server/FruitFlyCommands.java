@@ -46,7 +46,9 @@ public final class FruitFlyCommands {
                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 100))
                                         .executes(ctx -> learningStart(ctx, IntegerArgumentType.getInteger(ctx, "count")))))
                         .then(Commands.literal("stop").executes(FruitFlyCommands::learningStop))
-                        .then(Commands.literal("status").executes(FruitFlyCommands::learningStatus)))
+                        .then(Commands.literal("status").executes(FruitFlyCommands::learningStatus))
+                        .then(Commands.literal("stats").executes(FruitFlyCommands::learningStatus))
+                        .then(Commands.literal("reset").executes(FruitFlyCommands::learningReset)))
                 .then(Commands.literal("stats").executes(FruitFlyCommands::stats))
                 .then(Commands.literal("stim")
                         .then(Commands.argument("population", StringArgumentType.string())
@@ -119,9 +121,14 @@ public final class FruitFlyCommands {
 
     private static int learningStatus(CommandContext<CommandSourceStack> ctx) {
         CommandSourceStack src = ctx.getSource();
-        String state = LearningColony.isActive() ? "RUNNING" : "stopped";
-        src.sendSuccess(() -> Component.literal("Visible learning colony: " + state
+        src.sendSuccess(() -> Component.literal(LearningColony.statusText()
                 + " | brains " + FruitFlyMod.BRAIN.activeBrains() + "/" + FruitFlyMod.BRAIN.maxBrains()), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int learningReset(CommandContext<CommandSourceStack> ctx) {
+        LearningColony.resetEpisodes();
+        ctx.getSource().sendSuccess(() -> Component.literal("Reset learning chambers without resetting the flies' brains or learned plasticity."), false);
         return Command.SINGLE_SUCCESS;
     }
 
