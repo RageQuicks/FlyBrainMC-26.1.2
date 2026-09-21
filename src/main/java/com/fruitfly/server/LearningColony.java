@@ -108,7 +108,7 @@ public final class LearningColony {
         if (fly == null) return;
         fly.setMale(random.nextBoolean());
         fly.setFlyScale(1.0f);
-        fly.finalizeSpawn(world, world.getCurrentDifficultyAt(world.getSharedSpawnPos()), EntitySpawnReason.COMMAND, null);
+        fly.finalizeSpawn(world, world.getCurrentDifficultyAt(fly.blockPosition()), EntitySpawnReason.COMMAND, null);
         fly.setLearningSandbox(box);
         BOUNDS.put(fly, box);
         resetEpisode(fly, box, true);
