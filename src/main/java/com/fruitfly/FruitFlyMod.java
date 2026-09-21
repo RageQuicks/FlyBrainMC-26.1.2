@@ -35,6 +35,7 @@ public final class FruitFlyMod implements ModInitializer {
     public static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("fruitfly.json");
     public static final FruitFlyConfig CONFIG = FruitFlyConfig.load(CONFIG_PATH);
     public static final FlyBrainService BRAIN = new FlyBrainService(CONFIG);
+    public static final FlyLearningSandbox LEARNING_SANDBOX = new FlyLearningSandbox(CONFIG, BRAIN.connectome(), BRAIN.populations(), BRAIN.geometry());
 
     public static Identifier id(String path) { return Identifier.fromNamespaceAndPath(MOD_ID, path); }
 
@@ -65,8 +66,8 @@ public final class FruitFlyMod implements ModInitializer {
         });
 
         DebugFlySpawner.register();
-        ServerLifecycleEvents.SERVER_STARTING.register(server -> BRAIN.preload());
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> BRAIN.shutdown());
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> BRAIN.preload().thenRun(LEARNING_SANDBOX::start));
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> { LEARNING_SANDBOX.close(); BRAIN.shutdown(); });
         ServerEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
             if (entity instanceof FlyEntity fly) fly.releaseBrain();
         });
