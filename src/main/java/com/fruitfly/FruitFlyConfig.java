@@ -22,6 +22,22 @@ public final class FruitFlyConfig {
     public int brainThreads = 0;
     /** Maximum simultaneously simulated flies. Flies without a brain are inert until a brain becomes available. */
     public int maxBrains = 10;
+
+    // --- headless learning sandbox ---
+    /** Run the connectome learning laboratory alongside Minecraft. */
+    public boolean learningSandboxEnabled = true;
+    /** Initial parallel fly simulations in the sandbox. */
+    public int learningSandboxFlies = 100;
+    /** Simulated milliseconds advanced by each sandbox cycle. */
+    public double learningSandboxMsPerCycle = 5.0;
+    /** Seconds between sandbox telemetry log lines. */
+    public double learningSandboxLogSeconds = 10.0;
+    /** Three-factor plasticity rate; deliberately tiny to keep learning slow and stable. */
+    public double learningRate = 0.002;
+    /** Pull learned synaptic efficacy back toward the connectome baseline each cycle. */
+    public double learningHomeostaticRate = 0.0005;
+    /** Maximum learned deviation from the connectome-derived presynaptic efficacy. */
+    public double learningMaxDeviation = 0.50;
     /** Postsynaptic input gain for Kenyon cells (sparse coding correction; 1 = literal). */
     public double kenyonCellInputGain = 0.25;
     /** Postsynaptic input gain for antennal-lobe projection neurons (1 = literal). */
