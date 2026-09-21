@@ -36,6 +36,9 @@ public final class LearningColony {
     private static final int EPISODE_LIMIT_TICKS = 600;       // 30 seconds
     private static final int EPISODES_PER_GENERATION = 10;
     private static final int SUCCESS_REWARD_TICKS = 8;
+    private static final int MAX_DIFFICULTY = 4;
+    private static final int SUCCESSES_TO_ADVANCE = 2;
+    private static final int FAILURES_TO_RETREAT = 2;
 
     private static final Map<FlyEntity, AABB> BOUNDS = Collections.synchronizedMap(new IdentityHashMap<>());
     private static final Map<FlyEntity, Episode> EPISODES = Collections.synchronizedMap(new IdentityHashMap<>());
@@ -65,6 +68,10 @@ public final class LearningColony {
         double totalTimeTicks;
         int rewardHold;
         boolean foodSeen;
+        int difficulty;
+        int successStreak;
+        int failureStreak;
+        double foodX, foodY, foodZ;
         double startX, startY, startZ;
     }
 
@@ -168,6 +175,13 @@ public final class LearningColony {
             ep.ticks++;
             if (ep.ticks >= EPISODE_LIMIT_TICKS) {
                 fly.setLearningReward(-0.15);
+                ep.failureStreak++;
+                ep.successStreak = 0;
+                if (ep.failureStreak >= FAILURES_TO_RETREAT) {
+                    ep.difficulty = Math.max(0, ep.difficulty - 1);
+                    ep.failureStreak = 0;
+                    FruitFlyMod.LOGGER.info("Fly-{} reduced to task difficulty {} after repeated failures", fly.getFlyNumber(), ep.difficulty);
+                }
                 resetEpisode(fly, box, false);
             }
 
@@ -193,6 +207,13 @@ public final class LearningColony {
         ep.successes++;
         ep.generationEpisodes++;
         ep.totalTimeTicks += ep.ticks;
+        ep.successStreak++;
+        ep.failureStreak = 0;
+        if (ep.successStreak >= SUCCESSES_TO_ADVANCE) {
+            ep.difficulty = Math.min(MAX_DIFFICULTY, ep.difficulty + 1);
+            ep.successStreak = 0;
+            FruitFlyMod.LOGGER.info("Fly-{} advanced to task difficulty {}", fly.getFlyNumber(), ep.difficulty);
+        }
         totalSuccessTimeTicks += ep.ticks;
 
         if (ep.ticks < bestTimeTicks) {
@@ -223,13 +244,22 @@ public final class LearningColony {
         double x = box.minX + 0.6 + random.nextDouble() * (PEN - 1.2);
         double z = box.minZ + 0.6 + random.nextDouble() * (PEN - 1.2);
         double y = box.minY + 1.0 + random.nextDouble() * 2.0;
+        if (ep.difficulty >= 2) {
+            // Harder stages deliberately begin farther from the food in the horizontal plane.
+            x = randomEdgePosition(box.minX, box.maxX);
+            z = randomEdgePosition(box.minZ, box.maxZ);
+        }
+        if (ep.difficulty >= 3) {
+            // Advanced stages start low and place food high enough that hopping cannot solve the task.
+            y = box.minY + 0.8;
+        }
         ep.startX = x;
         ep.startY = y;
         ep.startZ = z;
         fly.setPos(x, y, z);
         fly.setDeltaMovement(0, 0, 0);
         fly.setLearningReward(first ? 0 : 1.0);
-        maintainFood(level, box);
+        maintainFood(level, box, ep);
     }
 
     private static void advanceGeneration(ServerLevel world, List<FlyEntity> flies) {
@@ -263,6 +293,8 @@ public final class LearningColony {
             ep.successes = 0;
             ep.generationEpisodes = 0;
             ep.totalTimeTicks = 0;
+            ep.successStreak = 0;
+            ep.failureStreak = 0;
             if (inherited != null) fly.applyLearningMemory(inherited);
             resetEpisode(fly, BOUNDS.get(fly), false);
         }
@@ -300,10 +332,9 @@ public final class LearningColony {
     }
 
     private static double distanceToFood(FlyEntity fly, AABB box) {
-        double cx = (box.minX + box.maxX) * 0.5;
-        double cy = box.minY + 1.0;
-        double cz = (box.minZ + box.maxZ) * 0.5;
-        double dx = fly.getX() - cx, dy = fly.getY() - cy, dz = fly.getZ() - cz;
+        Episode ep = EPISODES.get(fly);
+        if (ep == null || Double.isNaN(ep.foodX)) return Double.POSITIVE_INFINITY;
+        double dx = fly.getX() - ep.foodX, dy = fly.getY() - ep.foodY, dz = fly.getZ() - ep.foodZ;
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
@@ -330,18 +361,50 @@ public final class LearningColony {
     }
 
     private static void maintainFood(ServerLevel world, AABB box) {
-        if (world == null) return;
+        Episode ep = null;
+        for (Map.Entry<FlyEntity, AABB> e : BOUNDS.entrySet()) {
+            if (e.getValue() == box) {
+                ep = EPISODES.get(e.getKey());
+                break;
+            }
+        }
+        if (ep != null) maintainFood(world, box, ep);
+    }
+
+    private static void maintainFood(ServerLevel world, AABB box, Episode ep) {
+        if (world == null || ep == null) return;
         double cx = (box.minX + box.maxX) * 0.5;
         double cz = (box.minZ + box.maxZ) * 0.5;
-        AABB foodBox = new AABB(cx - 0.6, box.minY, cz - 0.6, cx + 0.6, box.maxY, cz + 0.6);
+        AABB foodBox = new AABB(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ);
         boolean present = !world.getEntitiesOfClass(ItemEntity.class, foodBox,
                 e -> e.isAlive() && e.getItem().getItem() == Items.APPLE).isEmpty();
         if (!present) {
-            ItemEntity apple = new ItemEntity(world, cx, box.minY + 1.0, cz, new ItemStack(Items.APPLE));
+            double spread = 0.5 + 0.65 * ep.difficulty;
+            double x = clamp(cx + (random.nextDouble() - 0.5) * spread, box.minX + 0.5, box.maxX - 0.5);
+            double z = clamp(cz + (random.nextDouble() - 0.5) * spread, box.minZ + 0.5, box.maxZ - 0.5);
+            double y = box.minY + 1.0 + Math.min(MAX_DIFFICULTY, ep.difficulty) * 1.0;
+            y = clamp(y, box.minY + 1.0, box.maxY - 0.5);
+            ep.foodX = x;
+            ep.foodY = y;
+            ep.foodZ = z;
+            ItemEntity apple = new ItemEntity(world, x, y, z, new ItemStack(Items.APPLE));
             apple.setNoGravity(true);
             apple.setDeltaMovement(0, 0, 0);
             world.addFreshEntity(apple);
+        } else {
+            ItemEntity apple = world.getEntitiesOfClass(ItemEntity.class, foodBox,
+                    e -> e.isAlive() && e.getItem().getItem() == Items.APPLE).get(0);
+            ep.foodX = apple.getX();
+            ep.foodY = apple.getY();
+            ep.foodZ = apple.getZ();
         }
+    }
+
+    private static double randomEdgePosition(double min, double max) {
+        double margin = 0.7;
+        return random.nextBoolean()
+                ? min + margin + random.nextDouble() * 0.8
+                : max - margin - random.nextDouble() * 0.8;
     }
 
     /** Reset the current chambers/episodes without resetting the flies' brains or learned plasticity. */
@@ -359,9 +422,9 @@ public final class LearningColony {
         double avg = totalSuccesses == 0 ? 0 : totalSuccessTimeTicks / totalSuccesses / 20.0;
         double best = bestTimeTicks == Double.POSITIVE_INFINITY ? 0 : bestTimeTicks / 20.0;
         return String.format(java.util.Locale.ROOT,
-                "Learning colony: RUNNING | gen %d | flies %d | episodes %d | successes %d (%.1f%%) | avg success %.2fs | best %.2fs (Fly-%d) | %d/%d gen episodes",
+                "Learning colony: RUNNING | gen %d | flies %d | episodes %d | successes %d (%.1f%%) | avg success %.2fs | best %.2fs (Fly-%d) | %d/%d gen episodes | curriculum 0-%d",
                 generation, configuredCount, completed, totalSuccesses, successRate, avg, best, bestFlyNumber,
-                generationEpisodes, configuredCount * EPISODES_PER_GENERATION);
+                generationEpisodes, configuredCount * EPISODES_PER_GENERATION, MAX_DIFFICULTY);
     }
 
     private static double clamp(double v, double lo, double hi) { return Math.max(lo, Math.min(hi, v)); }
