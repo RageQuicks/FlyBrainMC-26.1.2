@@ -66,7 +66,7 @@ public final class FruitFlyMod implements ModInitializer {
         });
 
         DebugFlySpawner.register();
-        ServerLifecycleEvents.SERVER_STARTING.register(server -> BRAIN.preload().thenRun(LEARNING_SANDBOX::start));
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> BRAIN.preload());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> { LEARNING_SANDBOX.close(); BRAIN.shutdown(); });
         ServerEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
             if (entity instanceof FlyEntity fly) fly.releaseBrain();
