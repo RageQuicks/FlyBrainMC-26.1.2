@@ -19,30 +19,54 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * Manages the visible 100-fly reinforcement-learning colony.
+ * Visible embodied reinforcement-learning experiment.
  *
- * <p>Each fly gets its own open sandbox: the walls are rendered with particles rather than solid blocks, so the
- * player can walk/fly through them while the fly's body is hard-clamped to its own AABB. A cake at the center of
- * each pen is a real Minecraft food stimulus sensed through the existing vision/olfaction/gustation pipeline.</p>
+ * Each fly has a repeatable episode: start somewhere in its pen, locate the real Minecraft apple,
+ * touch it with its proboscis, consume it, receive reward, and get reset to a new start position.
+ * The brain is NOT reset between episodes. At the end of a generation, the best fly's learned
+ * synaptic efficacy vector is loaded into the next generation as experimental inherited memory.
  */
 public final class LearningColony {
-    private static final int MAX_FLYES = 100;
+    private static final int MAX_FLIES = 100;
     private static final int GRID = 10;
     private static final double CELL = 8.0;
     private static final double PEN = 7.0;
     private static final double HEIGHT = 6.0;
-    private static final double FLOOR_MARGIN = 0.6;
     private static final int DRAW_EVERY_TICKS = 10;
+    private static final int EPISODE_LIMIT_TICKS = 600;       // 30 seconds
+    private static final int EPISODES_PER_GENERATION = 10;
+    private static final int SUCCESS_REWARD_TICKS = 8;
 
     private static final Map<FlyEntity, AABB> BOUNDS = Collections.synchronizedMap(new IdentityHashMap<>());
-    private static final Map<FlyEntity, Integer> FOOD_X = Collections.synchronizedMap(new IdentityHashMap<>());
-    private static final Map<FlyEntity, Integer> FOOD_Z = Collections.synchronizedMap(new IdentityHashMap<>());
+    private static final Map<FlyEntity, Episode> EPISODES = Collections.synchronizedMap(new IdentityHashMap<>());
+
     private static boolean active;
     private static int ticks;
+    private static int generation;
+    private static long totalEpisodes;
+    private static long totalSuccesses;
+    private static long generationEpisodes;
+    private static double totalSuccessTimeTicks;
+    private static double bestTimeTicks = Double.POSITIVE_INFINITY;
+    private static int bestFlyNumber;
     private static ServerLevel level;
     private static double originX, originY, originZ;
+    private static int configuredCount;
+    private static Random random;
 
     private LearningColony() {}
+
+    private static final class Episode {
+        int ticks;
+        int successes;
+        int generationEpisodes;
+        double lastDistance = Double.NaN;
+        double totalDistance;
+        double totalTimeTicks;
+        int rewardHold;
+        boolean foodSeen;
+        double startX, startY, startZ;
+    }
 
     public static boolean isActive() { return active; }
 
@@ -51,59 +75,59 @@ public final class LearningColony {
         level = world;
         active = true;
         ticks = 0;
+        generation = 1;
+        totalEpisodes = 0;
+        totalSuccesses = 0;
+        generationEpisodes = 0;
+        totalSuccessTimeTicks = 0;
+        bestTimeTicks = Double.POSITIVE_INFINITY;
+        bestFlyNumber = 0;
+        configuredCount = Math.max(1, Math.min(MAX_FLIES, requested));
+        random = new Random(0xF17E2026L);
         originX = ox - (GRID * CELL) / 2.0;
         originY = oy;
         originZ = oz - (GRID * CELL) / 2.0;
 
-        int count = Math.max(1, Math.min(MAX_FLYES, requested));
-        Random random = new Random(0xF17E2026L);
-        // Starting a visual experiment is authoritative: remove the old debug population first.
         List<FlyEntity> existing = new ArrayList<>();
         world.getEntities(FruitFlyMod.FRUIT_FLY, e -> e.isAlive(), existing);
         for (FlyEntity old : existing) old.discard();
 
-        for (int i = 0; i < count; i++) {
-            int gx = i % GRID;
-            int gz = i / GRID;
-            double minX = originX + gx * CELL + (CELL - PEN) / 2.0;
-            double minZ = originZ + gz * CELL + (CELL - PEN) / 2.0;
-            AABB box = new AABB(minX, originY, minZ, minX + PEN, originY + HEIGHT, minZ + PEN);
-            FlyEntity fly = FruitFlyMod.FRUIT_FLY.create(world, EntitySpawnReason.COMMAND);
-            if (fly == null) continue;
-            double x = box.minX + 0.5 + random.nextDouble() * (PEN - 1.0);
-            double z = box.minZ + 0.5 + random.nextDouble() * (PEN - 1.0);
-            double y = box.minY + 1.2 + random.nextDouble() * 1.8;
-            fly.setPos(x, y, z);
-            fly.setYRot(random.nextFloat() * 360f);
-            fly.setXRot(0f);
-            fly.setMale(random.nextBoolean());
-            fly.setLearningSandbox(box);
-            fly.setFlyScale(1.0f);
-            fly.finalizeSpawn(world, world.getCurrentDifficultyAt(fly.blockPosition()), EntitySpawnReason.COMMAND, null);
-            world.addFreshEntity(fly);
-            BOUNDS.put(fly, box);
-            FOOD_X.put(fly, (int) Math.floor((box.minX + box.maxX) * 0.5));
-            FOOD_Z.put(fly, (int) Math.floor((box.minZ + box.maxZ) * 0.5));
-        }
-        FruitFlyMod.LOGGER.info("Visual learning colony started: {} flies, {}x{} pens at {},{},{}", count, GRID, GRID, ox, oy, oz);
+        for (int i = 0; i < configuredCount; i++) spawnFly(world, i);
+
+        FruitFlyMod.LOGGER.info("Learning colony started: {} flies, generation 1, {} episodes/gen", configuredCount, EPISODES_PER_GENERATION);
+    }
+
+    private static void spawnFly(ServerLevel world, int index) {
+        int gx = index % GRID;
+        int gz = index / GRID;
+        double minX = originX + gx * CELL + (CELL - PEN) / 2.0;
+        double minZ = originZ + gz * CELL + (CELL - PEN) / 2.0;
+        AABB box = new AABB(minX, originY, minZ, minX + PEN, originY + HEIGHT, minZ + PEN);
+
+        FlyEntity fly = FruitFlyMod.FRUIT_FLY.create(world, EntitySpawnReason.COMMAND);
+        if (fly == null) return;
+        fly.setMale(random.nextBoolean());
+        fly.setFlyScale(1.0f);
+        fly.finalizeSpawn(world, world.getCurrentDifficultyAt(world.getSharedSpawnPos()), EntitySpawnReason.COMMAND, null);
+        fly.setLearningSandbox(box);
+        BOUNDS.put(fly, box);
+        resetEpisode(fly, box, true);
+        world.addFreshEntity(fly);
     }
 
     public static synchronized void stop() {
         List<FlyEntity> flies = new ArrayList<>(BOUNDS.keySet());
-        for (FlyEntity fly : flies) {
-            if (fly != null && fly.isAlive()) fly.discard();
-        }
+        for (FlyEntity fly : flies) if (fly != null && fly.isAlive()) fly.discard();
         BOUNDS.clear();
-        FOOD_X.clear();
-        FOOD_Z.clear();
+        EPISODES.clear();
         active = false;
         level = null;
+        configuredCount = 0;
     }
 
     public static synchronized void tick(MinecraftServer server) {
         if (!active) return;
         ticks++;
-        if (ticks % DRAW_EVERY_TICKS != 0) return;
         ServerLevel world = level;
         if (world == null) return;
 
@@ -111,20 +135,142 @@ public final class LearningColony {
         for (FlyEntity fly : flies) {
             if (fly == null || !fly.isAlive()) {
                 BOUNDS.remove(fly);
-                FOOD_X.remove(fly);
-                FOOD_Z.remove(fly);
+                EPISODES.remove(fly);
                 continue;
             }
             AABB box = BOUNDS.get(fly);
-            if (box == null) continue;
+            Episode ep = EPISODES.get(fly);
+            if (box == null || ep == null) continue;
+
             constrain(fly, box);
-            drawBoundary(world, box, fly.getFlyColor());
-            maintainFood(world, box);
+
+            boolean foodPresent = foodPresent(world, box);
+            if (ep.foodSeen && !foodPresent) {
+                completeEpisode(world, fly, box, ep);
+                ep = EPISODES.get(fly);
+                foodPresent = false;
+            }
+            ep.foodSeen = foodPresent;
+
+            double distance = distanceToFood(fly, box);
+            if (!Double.isNaN(ep.lastDistance)) {
+                double progress = ep.lastDistance - distance;
+                ep.totalDistance += Math.max(0.0, progress);
+                // Small shaping signal: reward approach, mildly penalize aimless wandering.
+                double shaped = Math.max(-0.03, Math.min(0.03, progress * 0.8 - 0.001));
+                fly.setLearningReward(ep.rewardHold > 0 ? 1.0 : shaped);
+            } else {
+                fly.setLearningReward(ep.rewardHold > 0 ? 1.0 : -0.001);
+            }
+            ep.lastDistance = distance;
+            if (ep.rewardHold > 0) ep.rewardHold--;
+
+            ep.ticks++;
+            if (ep.ticks >= EPISODE_LIMIT_TICKS) {
+                fly.setLearningReward(-0.15);
+                resetEpisode(fly, box, false);
+            }
+
+            if (ticks % DRAW_EVERY_TICKS == 0) {
+                drawBoundary(world, box);
+                maintainFood(world, box);
+            }
+        }
+
+        if (ticks % DRAW_EVERY_TICKS == 0 && generationEpisodes >= configuredCount * EPISODES_PER_GENERATION) {
+            advanceGeneration(world, flies);
         }
         if (BOUNDS.isEmpty()) {
             active = false;
             level = null;
         }
+    }
+
+    private static void completeEpisode(ServerLevel world, FlyEntity fly, AABB box, Episode ep) {
+        totalEpisodes++;
+        generationEpisodes++;
+        totalSuccesses++;
+        ep.successes++;
+        ep.generationEpisodes++;
+        ep.totalTimeTicks += ep.ticks;
+        totalSuccessTimeTicks += ep.ticks;
+
+        if (ep.ticks < bestTimeTicks) {
+            bestTimeTicks = ep.ticks;
+            bestFlyNumber = fly.getFlyNumber();
+        }
+
+        ep.rewardHold = SUCCESS_REWARD_TICKS;
+        fly.setLearningReward(1.0);
+        fly.captureLearningMemory();
+
+        // A visible success marker makes it obvious that an episode really completed.
+        world.sendParticles(ParticleTypes.HAPPY_VILLAGER,
+                (box.minX + box.maxX) * 0.5, box.minY + 1.0, (box.minZ + box.maxZ) * 0.5,
+                12, 0.5, 0.5, 0.5, 0.08);
+
+        resetEpisode(fly, box, false);
+    }
+
+    private static void resetEpisode(FlyEntity fly, AABB box, boolean first) {
+        Episode ep = EPISODES.computeIfAbsent(fly, f -> new Episode());
+        ep.ticks = 0;
+        ep.lastDistance = Double.NaN;
+        ep.totalDistance = 0;
+        ep.foodSeen = false;
+        ep.rewardHold = first ? 0 : Math.max(ep.rewardHold, SUCCESS_REWARD_TICKS);
+
+        double x = box.minX + 0.6 + random.nextDouble() * (PEN - 1.2);
+        double z = box.minZ + 0.6 + random.nextDouble() * (PEN - 1.2);
+        double y = box.minY + 1.0 + random.nextDouble() * 2.0;
+        ep.startX = x;
+        ep.startY = y;
+        ep.startZ = z;
+        fly.setPos(x, y, z);
+        fly.setDeltaMovement(0, 0, 0);
+        fly.setLearningReward(first ? 0 : 1.0);
+        maintainFood(level, box);
+    }
+
+    private static void advanceGeneration(ServerLevel world, List<FlyEntity> flies) {
+        FlyEntity champion = null;
+        int championSuccesses = -1;
+        double championAvg = Double.POSITIVE_INFINITY;
+        for (FlyEntity fly : flies) {
+            Episode ep = EPISODES.get(fly);
+            if (ep == null) continue;
+            double avg = ep.generationEpisodes == 0 ? Double.POSITIVE_INFINITY : ep.totalTimeTicks / ep.generationEpisodes;
+            if (ep.generationEpisodes > 0 && (ep.successes > championSuccesses || (ep.successes == championSuccesses && avg < championAvg))) {
+                champion = fly;
+                championSuccesses = ep.successes;
+                championAvg = avg;
+            }
+        }
+
+        if (champion != null && champion.learningMemory() == null) {
+            // The memory snapshot is queued onto the brain thread; wait one tick rather than silently losing it.
+            champion.captureLearningMemory();
+            return;
+        }
+
+        float[] inherited = champion == null ? null : champion.learningMemory();
+        generation++;
+        generationEpisodes = 0;
+
+        for (FlyEntity fly : flies) {
+            Episode ep = EPISODES.get(fly);
+            if (ep == null) continue;
+            ep.successes = 0;
+            ep.generationEpisodes = 0;
+            ep.totalTimeTicks = 0;
+            if (inherited != null) fly.applyLearningMemory(inherited);
+            resetEpisode(fly, BOUNDS.get(fly), false);
+        }
+
+        world.sendParticles(ParticleTypes.END_ROD,
+                (originX + GRID * CELL * 0.5), originY + 2.0, (originZ + GRID * CELL * 0.5),
+                80, GRID * CELL * 0.45, 1.0, GRID * CELL * 0.45, 0.02);
+        FruitFlyMod.LOGGER.info("Learning colony advanced to generation {}. Inherited memory: {}", generation, inherited != null);
     }
 
     public static AABB boundsFor(FlyEntity fly) { return BOUNDS.get(fly); }
@@ -145,11 +291,24 @@ public final class LearningColony {
         }
     }
 
-    private static void drawBoundary(ServerLevel world, AABB b, int rgb) {
-        // Particle color is intentionally neutral; the fly's colored name identifies its pen.
+    private static boolean foodPresent(ServerLevel world, AABB box) {
+        double cx = (box.minX + box.maxX) * 0.5;
+        double cz = (box.minZ + box.maxZ) * 0.5;
+        AABB foodBox = new AABB(cx - 0.75, box.minY, cz - 0.75, cx + 0.75, box.maxY, cz + 0.75);
+        return !world.getEntitiesOfClass(ItemEntity.class, foodBox,
+                e -> e.isAlive() && e.getItem().getItem() == Items.APPLE).isEmpty();
+    }
+
+    private static double distanceToFood(FlyEntity fly, AABB box) {
+        double cx = (box.minX + box.maxX) * 0.5;
+        double cy = box.minY + 1.0;
+        double cz = (box.minZ + box.maxZ) * 0.5;
+        double dx = fly.getX() - cx, dy = fly.getY() - cy, dz = fly.getZ() - cz;
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
+    private static void drawBoundary(ServerLevel world, AABB b) {
         double y0 = b.minY, y1 = b.maxY;
-        double[] xs = {b.minX, b.maxX};
-        double[] zs = {b.minZ, b.maxZ};
         int steps = 3;
         for (int i = 0; i <= steps; i++) {
             double t = i / (double) steps;
@@ -164,9 +323,6 @@ public final class LearningColony {
             particle(world, b.minX, y1, z);
             particle(world, b.maxX, y1, z);
         }
-        for (double x : xs) for (double z : zs) {
-            for (int i = 0; i <= steps; i++) particle(world, x, y0 + (y1-y0)*i/steps, z);
-        }
     }
 
     private static void particle(ServerLevel world, double x, double y, double z) {
@@ -174,6 +330,7 @@ public final class LearningColony {
     }
 
     private static void maintainFood(ServerLevel world, AABB box) {
+        if (world == null) return;
         double cx = (box.minX + box.maxX) * 0.5;
         double cz = (box.minZ + box.maxZ) * 0.5;
         AABB foodBox = new AABB(cx - 0.6, box.minY, cz - 0.6, cx + 0.6, box.maxY, cz + 0.6);
@@ -185,6 +342,18 @@ public final class LearningColony {
             apple.setDeltaMovement(0, 0, 0);
             world.addFreshEntity(apple);
         }
+    }
+
+    public static String statusText() {
+        if (!active) return "Learning colony: STOPPED";
+        long completed = totalEpisodes;
+        double successRate = completed == 0 ? 0 : 100.0 * totalSuccesses / completed;
+        double avg = totalSuccesses == 0 ? 0 : totalSuccessTimeTicks / totalSuccesses / 20.0;
+        double best = bestTimeTicks == Double.POSITIVE_INFINITY ? 0 : bestTimeTicks / 20.0;
+        return String.format(java.util.Locale.ROOT,
+                "Learning colony: RUNNING | gen %d | flies %d | episodes %d | successes %d (%.1f%%) | avg success %.2fs | best %.2fs (Fly-%d) | %d/%d gen episodes",
+                generation, configuredCount, completed, totalSuccesses, successRate, avg, best, bestFlyNumber,
+                generationEpisodes, configuredCount * EPISODES_PER_GENERATION);
     }
 
     private static double clamp(double v, double lo, double hi) { return Math.max(lo, Math.min(hi, v)); }
