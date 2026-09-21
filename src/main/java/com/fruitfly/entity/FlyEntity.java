@@ -11,6 +11,7 @@ import com.fruitfly.brain.RetinaGeometry;
 import com.fruitfly.brain.SensoryEncoders;
 import com.fruitfly.brain.SensoryFrame;
 import com.fruitfly.net.BrainTelemetryPayload;
+import com.fruitfly.server.LearningColony;
 import com.mojang.serialization.Codec;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -76,6 +77,16 @@ public class FlyEntity extends Mob {
     private int brainRetryTicks;
     private final List<Object[]> stimuli = new ArrayList<>(); // {spec, hz, ticksLeft}
     private volatile BrainTelemetryPayload lastTelemetry;
+    /** True for flies participating in the visible Minecraft learning colony. */
+    private volatile boolean learningFly;
+    private volatile double learningReward;
+
+    public void setLearningSandbox(net.minecraft.world.phys.AABB bounds) {
+        learningFly = bounds != null;
+        learningReward = 0.0;
+    }
+    public boolean isLearningFly() { return learningFly; }
+    public double learningReward() { return learningReward; }
 
     public FlyEntity(EntityType<? extends FlyEntity> type, Level level) {
         super(type, level);
@@ -224,7 +235,13 @@ public class FlyEntity extends Mob {
         this.decoder = new MotorDecoder(pi);
         final MotorDecoder dec = this.decoder;
         final double tickMs = r.tickMs();
-        r.setPostStepHook(net -> dec.update(net, tickMs));
+        r.setPostStepHook(net -> {
+            dec.update(net, tickMs);
+            if (learningFly) {
+                net.applyNeuromodulatedPlasticity(learningReward, cfg.learningRate,
+                        cfg.learningHomeostaticRate, cfg.learningMaxDeviation);
+            }
+        });
         this.brain = r;
         entityData.set(DATA_HAS_BRAIN, true);
         FruitFlyMod.LOGGER.info("Fly #{} acquired a brain ({} / {})", getId(), svc.activeBrains(), svc.maxBrains());

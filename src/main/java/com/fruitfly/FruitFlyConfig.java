@@ -21,11 +21,11 @@ public final class FruitFlyConfig {
     /** Worker threads per brain (0 = auto). */
     public int brainThreads = 0;
     /** Maximum simultaneously simulated flies. Flies without a brain are inert until a brain becomes available. */
-    public int maxBrains = 10;
+    public int maxBrains = 100;
 
     // --- headless learning sandbox ---
     /** Run the connectome learning laboratory alongside Minecraft. */
-    public boolean learningSandboxEnabled = true;
+    public boolean learningSandboxEnabled = false;
     /** Initial parallel fly simulations in the sandbox. */
     public int learningSandboxFlies = 100;
     /** Simulated milliseconds advanced by each sandbox cycle. */
@@ -74,9 +74,9 @@ public final class FruitFlyConfig {
 
     // --- debug ecology ---
     /** Number of flies spawned around the first player when the server/world begins. */
-    public int debugStartFlyCount = 10;
+    public int debugStartFlyCount = 0;
     /** Maximum distance from the nearest player; beyond this the debug leash returns the fly inward. */
-    public double debugLeashRadius = 32;
+    public double debugLeashRadius = 0;
 
     // --- telemetry / debug ---
     /**

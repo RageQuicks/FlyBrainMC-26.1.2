@@ -40,6 +40,13 @@ public final class FruitFlyCommands {
                         .then(Commands.literal("female").executes(ctx -> spawn(ctx, false, 1, 1f))
                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 8)).executes(ctx -> spawn(ctx, false, IntegerArgumentType.getInteger(ctx, "count"), 1f))))
                         .then(Commands.literal("big").executes(ctx -> spawn(ctx, true, 1, 2.5f))))
+                .then(Commands.literal("learning")
+                        .then(Commands.literal("start")
+                                .executes(ctx -> learningStart(ctx, 100))
+                                .then(Commands.argument("count", IntegerArgumentType.integer(1, 100))
+                                        .executes(ctx -> learningStart(ctx, IntegerArgumentType.getInteger(ctx, "count")))))
+                        .then(Commands.literal("stop").executes(FruitFlyCommands::learningStop))
+                        .then(Commands.literal("status").executes(FruitFlyCommands::learningStatus)))
                 .then(Commands.literal("stats").executes(FruitFlyCommands::stats))
                 .then(Commands.literal("stim")
                         .then(Commands.argument("population", StringArgumentType.string())
@@ -89,6 +96,33 @@ public final class FruitFlyCommands {
         final int n = spawned;
         src.sendSuccess(() -> Component.literal("Spawned " + n + (male ? " male" : " female") + " fruit fl" + (n == 1 ? "y" : "ies") + " (" + brainMsg + ")"), false);
         return n;
+    }
+
+
+    private static int learningStart(CommandContext<CommandSourceStack> ctx, int count) {
+        CommandSourceStack src = ctx.getSource();
+        if (!(src.getLevel() instanceof ServerLevel level)) return 0;
+        if (!FruitFlyMod.BRAIN.ready()) {
+            src.sendFailure(Component.literal("Connectome is still loading; try /fruitfly learning start again in a moment."));
+            return 0;
+        }
+        LearningColony.start(level, src.getPosition().x, src.getPosition().y, src.getPosition().z, count);
+        src.sendSuccess(() -> Component.literal("Started visible learning colony: " + count + " flies. Each fly has its own open pen, real Minecraft food, and bounded connectome plasticity."), false);
+        return count;
+    }
+
+    private static int learningStop(CommandContext<CommandSourceStack> ctx) {
+        LearningColony.stop();
+        ctx.getSource().sendSuccess(() -> Component.literal("Stopped the visible learning colony and removed its flies."), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int learningStatus(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack src = ctx.getSource();
+        String state = LearningColony.isActive() ? "RUNNING" : "stopped";
+        src.sendSuccess(() -> Component.literal("Visible learning colony: " + state
+                + " | brains " + FruitFlyMod.BRAIN.activeBrains() + "/" + FruitFlyMod.BRAIN.maxBrains()), false);
+        return Command.SINGLE_SUCCESS;
     }
 
     private static int stats(CommandContext<CommandSourceStack> ctx) {
