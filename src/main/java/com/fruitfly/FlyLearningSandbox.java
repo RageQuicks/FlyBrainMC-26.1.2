@@ -26,9 +26,10 @@ public final class FlyLearningSandbox implements AutoCloseable {
     private static final double STEP_SECONDS = 0.05;
 
     private final FruitFlyConfig config;
-    private final Connectome connectome;
-    private final PopulationIndex populations;
-    private final RetinaGeometry geometry;
+    private final FlyBrainService brainService;
+    private Connectome connectome;
+    private PopulationIndex populations;
+    private RetinaGeometry geometry;
     private final List<Agent> agents = new ArrayList<>();
     private final List<Food> food = new ArrayList<>();
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -39,15 +40,16 @@ public final class FlyLearningSandbox implements AutoCloseable {
     private double distanceSum;
     private long lastLogCycle;
 
-    public FlyLearningSandbox(FruitFlyConfig config, Connectome connectome, PopulationIndex populations, RetinaGeometry geometry) {
+    public FlyLearningSandbox(FruitFlyConfig config, FlyBrainService brainService) {
         this.config = config;
-        this.connectome = connectome;
-        this.populations = populations;
-        this.geometry = geometry;
+        this.brainService = brainService;
     }
 
     public synchronized void start() {
-        if (!config.learningSandboxEnabled || running.get()) return;
+        if (!config.learningSandboxEnabled || running.get() || !brainService.ready()) return;
+        connectome = brainService.connectome();
+        populations = brainService.populations();
+        geometry = brainService.geometry();
         int count = Math.max(1, Math.min(100, config.learningSandboxFlies));
         food.clear();
         for (int i = 0; i < 16; i++) food.add(new Food(4 + rng.nextDouble(ARENA - 8), 4 + rng.nextDouble(ARENA - 8)));
