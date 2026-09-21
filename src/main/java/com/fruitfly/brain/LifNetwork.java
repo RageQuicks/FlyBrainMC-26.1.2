@@ -31,7 +31,10 @@ public final class LifNetwork {
     private final int refSteps;
     private final float decay;            // exp(-dt/tau)
     private final float vRest, vThr, vReset, idleEps;
-    private final float[] preScale;       // per presynaptic neuron: sign * wSyn * gain (* inhGain)
+    private final float[] preScale;       // mutable per-presynaptic efficacy: sign * wSyn * gain (* inhGain)
+    private final float[] basePreScale;   // immutable biological baseline used by homeostatic plasticity
+    private final int[] plasticStamp;     // deduplicate recently spiking neurons during one plasticity event
+    private int plasticStampId;
     private final float maxJump;
     private final float[] g;              // synaptic drive variable (mV), null in delta-synapse mode
     private final boolean expSyn;
@@ -92,11 +95,14 @@ public final class LifNetwork {
         this.idleEps = (float) this.cfg.idleEpsMv;
         this.maxJump = (float) this.cfg.maxJumpMv;
         this.preScale = new float[n];
+        this.basePreScale = new float[n];
+        this.plasticStamp = new int[n];
         for (int i = 0; i < n; i++) {
             int s = c.ntSign[i];
             double scale = s * this.cfg.wSynMv * this.cfg.gain;
             if (s < 0) scale *= this.cfg.inhibitoryGain;
             preScale[i] = (float) scale;
+            basePreScale[i] = (float) scale;
         }
         if (this.cfg.inputNormSynapses > 0) {
             long[] totalIn = new long[n];
@@ -223,6 +229,36 @@ public final class LifNetwork {
 
     /** Current postsynaptic input scaling of neuron i (1 = literal). */
     public float postsynapticGain(int i) { return inScale == null ? 1f : inScale[i]; }
+
+    // ------------------------------------------------------------------ neuromodulated plasticity
+
+    /** Apply a bounded three-factor learning signal to recently active presynaptic neurons. */
+    public void applyNeuromodulatedPlasticity(double reward, double learningRate, double homeostaticRate, double maxDeviation) {
+        if (spikeLogCount == 0) return;
+        double r = Math.max(-1.0, Math.min(1.0, reward));
+        double lr = Math.max(0.0, learningRate);
+        double homeo = Math.max(0.0, homeostaticRate);
+        double dev = Math.max(0.0, Math.min(0.95, maxDeviation));
+        int stamp = ++plasticStampId;
+        if (stamp == 0) { Arrays.fill(plasticStamp, 0); stamp = ++plasticStampId; }
+        for (int k = 0; k < spikeLogCount; k++) {
+            int i = spikeLogNeuron[k];
+            if (plasticStamp[i] == stamp) continue;
+            plasticStamp[i] = stamp;
+            float base = basePreScale[i];
+            if (base == 0f) continue;
+            float current = preScale[i];
+            current += (float) (lr * r * Math.abs(base));
+            current += (float) (homeo * (base - current));
+            float lo = (float) (Math.abs(base) * (1.0 - dev));
+            float hi = (float) (Math.abs(base) * (1.0 + dev));
+            float sign = base < 0f ? -1f : 1f;
+            float mag = Math.max(lo, Math.min(hi, Math.abs(current)));
+            preScale[i] = sign * mag;
+        }
+    }
+
+    public void resetPlasticity() { System.arraycopy(basePreScale, 0, preScale, 0, n); }
 
     // ------------------------------------------------------------------ stepping
 
