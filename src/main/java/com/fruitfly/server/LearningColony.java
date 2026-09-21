@@ -344,6 +344,14 @@ public final class LearningColony {
         }
     }
 
+    /** Reset the current chambers/episodes without resetting the flies' brains or learned plasticity. */
+    public static synchronized void resetEpisodes() {
+        if (!active || level == null) return;
+        for (Map.Entry<FlyEntity, AABB> e : BOUNDS.entrySet()) {
+            resetEpisode(e.getKey(), e.getValue(), false);
+        }
+    }
+
     public static String statusText() {
         if (!active) return "Learning colony: STOPPED";
         long completed = totalEpisodes;
