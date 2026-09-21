@@ -324,10 +324,8 @@ public final class LearningColony {
     }
 
     private static boolean foodPresent(ServerLevel world, AABB box) {
-        double cx = (box.minX + box.maxX) * 0.5;
-        double cz = (box.minZ + box.maxZ) * 0.5;
-        AABB foodBox = new AABB(cx - 0.75, box.minY, cz - 0.75, cx + 0.75, box.maxY, cz + 0.75);
-        return !world.getEntitiesOfClass(ItemEntity.class, foodBox,
+        // The curriculum can move the apple away from the pen center, so detect it anywhere in this fly's pen.
+        return !world.getEntitiesOfClass(ItemEntity.class, box,
                 e -> e.isAlive() && e.getItem().getItem() == Items.APPLE).isEmpty();
     }
 
