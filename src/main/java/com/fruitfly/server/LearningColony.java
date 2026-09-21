@@ -57,7 +57,8 @@ public final class LearningColony {
 
         int count = Math.max(1, Math.min(MAX_FLYES, requested));
         Random random = new Random(0xF17E2026L);
-        // Starting a visual experiment is authoritative: remove the old 10-fly debug population first.\n        List<FlyEntity> existing = new ArrayList<>();
+        // Starting a visual experiment is authoritative: remove the old debug population first.
+        List<FlyEntity> existing = new ArrayList<>();
         world.getEntities(FruitFlyMod.FRUIT_FLY, e -> e.isAlive(), existing);
         for (FlyEntity old : existing) old.discard();
 
