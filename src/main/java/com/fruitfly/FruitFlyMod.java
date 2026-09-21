@@ -35,7 +35,7 @@ public final class FruitFlyMod implements ModInitializer {
     public static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("fruitfly.json");
     public static final FruitFlyConfig CONFIG = FruitFlyConfig.load(CONFIG_PATH);
     public static final FlyBrainService BRAIN = new FlyBrainService(CONFIG);
-    public static final FlyLearningSandbox LEARNING_SANDBOX = new FlyLearningSandbox(CONFIG, BRAIN.connectome(), BRAIN.populations(), BRAIN.geometry());
+    public static final FlyLearningSandbox LEARNING_SANDBOX = new FlyLearningSandbox(CONFIG, BRAIN);
 
     public static Identifier id(String path) { return Identifier.fromNamespaceAndPath(MOD_ID, path); }
 
