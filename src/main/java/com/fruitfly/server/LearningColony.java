@@ -6,10 +6,9 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
@@ -33,7 +32,7 @@ public final class LearningColony {
     private static final double PEN = 7.0;
     private static final double HEIGHT = 6.0;
     private static final double FLOOR_MARGIN = 0.6;
-    private static final int DRAW_EVERY_TICKS = 4;
+    private static final int DRAW_EVERY_TICKS = 10;
 
     private static final Map<FlyEntity, AABB> BOUNDS = Collections.synchronizedMap(new IdentityHashMap<>());
     private static final Map<FlyEntity, Integer> FOOD_X = Collections.synchronizedMap(new IdentityHashMap<>());
@@ -58,6 +57,9 @@ public final class LearningColony {
 
         int count = Math.max(1, Math.min(MAX_FLYES, requested));
         Random random = new Random(0xF17E2026L);
+        // Starting a visual experiment is authoritative: remove the old 10-fly debug population first.\n        List<FlyEntity> existing = new ArrayList<>();
+        world.getEntities(FruitFlyMod.FRUIT_FLY, e -> e.isAlive(), existing);
+        for (FlyEntity old : existing) old.discard();
 
         for (int i = 0; i < count; i++) {
             int gx = i % GRID;
@@ -65,8 +67,6 @@ public final class LearningColony {
             double minX = originX + gx * CELL + (CELL - PEN) / 2.0;
             double minZ = originZ + gz * CELL + (CELL - PEN) / 2.0;
             AABB box = new AABB(minX, originY, minZ, minX + PEN, originY + HEIGHT, minZ + PEN);
-            BOUNDS.put(null, box);
-
             FlyEntity fly = FruitFlyMod.FRUIT_FLY.create(world, EntitySpawnReason.COMMAND);
             if (fly == null) continue;
             double x = box.minX + 0.5 + random.nextDouble() * (PEN - 1.0);
@@ -80,7 +80,6 @@ public final class LearningColony {
             fly.setFlyScale(1.0f);
             fly.finalizeSpawn(world, world.getCurrentDifficultyAt(fly.blockPosition()), EntitySpawnReason.COMMAND, null);
             world.addFreshEntity(fly);
-            BOUNDS.remove(null);
             BOUNDS.put(fly, box);
             FOOD_X.put(fly, (int) Math.floor((box.minX + box.maxX) * 0.5));
             FOOD_Z.put(fly, (int) Math.floor((box.minZ + box.maxZ) * 0.5));
@@ -150,7 +149,7 @@ public final class LearningColony {
         double y0 = b.minY, y1 = b.maxY;
         double[] xs = {b.minX, b.maxX};
         double[] zs = {b.minZ, b.maxZ};
-        int steps = 4;
+        int steps = 3;
         for (int i = 0; i <= steps; i++) {
             double t = i / (double) steps;
             double x = b.minX + (b.maxX - b.minX) * t;
@@ -174,11 +173,17 @@ public final class LearningColony {
     }
 
     private static void maintainFood(ServerLevel world, AABB box) {
-        int cx = (int) Math.floor((box.minX + box.maxX) * 0.5);
-        int cz = (int) Math.floor((box.minZ + box.maxZ) * 0.5);
-        var pos = new net.minecraft.core.BlockPos(cx, (int) Math.floor(box.minY), cz);
-        BlockState state = world.getBlockState(pos);
-        if (state.getBlock() != Blocks.CAKE) world.setBlockAndUpdate(pos, Blocks.CAKE.defaultBlockState());
+        double cx = (box.minX + box.maxX) * 0.5;
+        double cz = (box.minZ + box.maxZ) * 0.5;
+        AABB foodBox = new AABB(cx - 0.6, box.minY, cz - 0.6, cx + 0.6, box.maxY, cz + 0.6);
+        boolean present = !world.getEntitiesOfClass(ItemEntity.class, foodBox,
+                e -> e.isAlive() && e.getItem().getItem() == Items.APPLE).isEmpty();
+        if (!present) {
+            ItemEntity apple = new ItemEntity(world, cx, box.minY + 1.0, cz, new ItemStack(Items.APPLE));
+            apple.setNoGravity(true);
+            apple.setDeltaMovement(0, 0, 0);
+            world.addFreshEntity(apple);
+        }
     }
 
     private static double clamp(double v, double lo, double hi) { return Math.max(lo, Math.min(hi, v)); }
