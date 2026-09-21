@@ -76,7 +76,7 @@ public final class FlyBrainService {
     public PopulationIndex populations() { return populations; }
     public RetinaGeometry geometry() { return geometry; }
     public int activeBrains() { return runners.size(); }
-    public int maxBrains() { return config.maxBrains; }
+    public int maxBrains() { return Math.max(config.maxBrains, config.learningSandboxFlies); }
 
     public LifConfig lifConfig() {
         LifConfig lc = new LifConfig();
@@ -92,7 +92,7 @@ public final class FlyBrainService {
             preload();
             return null;
         }
-        if (runners.size() >= config.maxBrains) return null;
+        if (runners.size() >= maxBrains()) return null;
         LifConfig lc = lifConfig();
         // Every fly gets an independent stochastic neural stream. Identical sensory input must not produce identical brains.
         lc.seed ^= 0x9E3779B97F4A7C15L * (long) name.hashCode();
